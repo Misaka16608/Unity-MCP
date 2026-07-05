@@ -17,27 +17,25 @@ namespace AIGD
 {
     public class PrefabData
     {
-        [Description("Path to the prefab asset within the project. Starts with 'Assets/'.")]
+        [Description("Asset path, starts with 'Assets/'.")]
         public string AssetPath { get; set; } = string.Empty;
 
-        [Description("Unique identifier for the prefab asset.")]
+        [Description("Asset GUID.")]
         public string AssetGuid { get; set; } = string.Empty;
 
-        [Description("Name of the prefab asset.")]
+        [Description("Prefab name.")]
         public string Name { get; set; } = string.Empty;
 
-        [Description("Root GameObject of the prefab with its full hierarchy, components, bounds, and serialized data " +
-            "(depending on the toggles). A prefab always has exactly one root.")]
+        [Description("Root GameObject with full hierarchy, components, bounds, and serialized data.")]
         public GameObjectData? RootGameObject { get; set; } = null;
 
-        [Description("If true, the prefab was loaded successfully and the root GameObject is valid.")]
+        [Description("Whether the prefab loaded successfully.")]
         public bool IsValid { get; set; }
 
-        [Description("Total number of GameObjects in the prefab hierarchy.")]
+        [Description("Total GameObject count in the hierarchy.")]
         public int TotalGameObjectCount { get; set; }
 
-        [Description("Path-scoped read or view-query result, populated when 'paths' or 'viewQuery' is supplied " +
-            "to the assets-prefab-get-data tool. Null otherwise.")]
+        [Description("Path-scoped read or view-query result. Populated when 'paths' or 'viewQuery' is supplied.")]
         public SerializedMember? Data { get; set; } = null;
 
         public PrefabData() { }

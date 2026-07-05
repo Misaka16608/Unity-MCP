@@ -35,59 +35,49 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             ReadOnlyHint = true,
             IdempotentHint = true
         )]
-        [AiSkillDescription("Retrieve the complete GameObject hierarchy of a prefab asset. " +
-            "Equivalent of '" + Tool_Scene.SceneGetDataToolId + "' but for prefabs — returns the root GameObject " +
-            "with its full hierarchy, components, bounds, and serialized data in a single call. " +
-            "No need to open/close the prefab stage. " +
-            "Use '" + Tool_Assets.AssetsFindToolId + "' to locate prefab assets first.")]
-        [AiSkillBody("This tool retrieves the full GameObject hierarchy of a prefab asset without opening " +
-            "the prefab stage. It loads the prefab directly and returns the root GameObject with its complete " +
-            "descendant tree.\n\n" +
+        [AiSkillDescription("Retrieve the full GameObject hierarchy of a prefab asset in a single call — " +
+            "the prefab equivalent of '" + Tool_Scene.SceneGetDataToolId + "'. " +
+            "Loads the prefab directly, no need to open/close the prefab stage. " +
+            "Use '" + Tool_Assets.AssetsFindToolId + "' to locate the prefab first.")]
+        [AiSkillBody("Retrieve the full GameObject hierarchy of a prefab asset. " +
+            "Use '" + Tool_Assets.AssetsFindToolId + "' to find prefabs.\n\n" +
             "## Toggles (all default `false` to keep responses small)\n\n" +
             "- `includeChildrenDepth` (default 3) — depth of the hierarchy to include.\n" +
             "- `includeBounds` — include 3D bounds for GameObjects.\n" +
             "- `includeData` — include serialized component data for GameObjects.\n\n" +
             "## Path-scoped reads (token-saving)\n\n" +
-            "Supply `paths` to read only the listed fields/elements from the prefab root GameObject's data via " +
+            "Supply `paths` to read only the listed fields from the prefab root GameObject's data via " +
             "`Reflector.TryReadAt`, or `viewQuery` to navigate/filter via `Reflector.View`. " +
             "The result populates `Data` on the returned `PrefabData`. These two parameters are mutually exclusive.\n\n" +
             "## Path syntax\n\n" +
             "`fieldName`, `nested/field`, `arrayField/[i]`, `dictField/[key]`. Leading `#/` is stripped. " +
-            "Example: `paths=['m_Name']` reads the name of the root GameObject.\n\n" +
-            "## Comparison with scene-get-data\n\n" +
-            "Unlike '" + Tool_Scene.SceneGetDataToolId + "' which returns a list of root GameObjects (scenes can " +
-            "have multiple roots), this tool returns a single root GameObject since prefabs always have exactly one root.")]
-        [Description("This tool retrieves the full GameObject hierarchy of a prefab asset without opening " +
-            "the prefab stage. It loads the prefab directly and returns the root GameObject with its complete " +
-            "descendant tree.\n\n" +
+            "Example: `paths=['m_Name']` reads the root GameObject's name.")]
+        [Description("Retrieve the full GameObject hierarchy of a prefab asset. " +
+            "Use '" + Tool_Assets.AssetsFindToolId + "' to find prefabs.\n\n" +
             "Path-scoped reads (token-saving): supply '" + "paths" + "' (a list of paths) to read only the listed " +
             "fields/elements from the prefab root GameObject's data via Reflector.TryReadAt, or '" + "viewQuery" +
             "' (a ViewQuery) to navigate/filter via Reflector.View. The result populates 'Data' on the " +
             "returned PrefabData. These two parameters are mutually exclusive.\n" +
-            "Path syntax: 'fieldName', 'nested/field', 'arrayField/[i]', 'dictField/[key]'. Leading '#/' is stripped. " +
-            "Example: paths=['m_Name'] reads the name of the root GameObject.")]
+            "Path syntax: 'fieldName', 'nested/field', 'arrayField/[i]', 'dictField/[key]'. Leading '#/' is stripped.")]
         public PrefabData GetData
         (
-            [Description("Path to the prefab asset. Must start with 'Assets/' and end with '.prefab'. " +
-                "Use '" + Tool_Assets.AssetsFindToolId + "' to locate prefab assets first.")]
+            [Description("Prefab asset path, e.g. 'Assets/Prefabs/MyPrefab.prefab'. " +
+                "Use '" + Tool_Assets.AssetsFindToolId + "' to locate. Mutually exclusive with 'gameObjectRef'.")]
             string? prefabAssetPath = null,
-            [Description("Reference to a scene GameObject that is a prefab instance. " +
-                "When provided, the source prefab asset is resolved from the instance. " +
+            [Description("Scene prefab instance reference. Resolves to its source prefab asset. " +
                 "Mutually exclusive with 'prefabAssetPath'.")]
             GameObjectRef? gameObjectRef = null,
-            [Description("Determines the depth of the hierarchy to include. Default 3. " +
-                "Set to a high value (e.g. 99) to include all descendants.")]
+            [Description("Hierarchy depth to include (default 3). Use a high value like 99 for all descendants.")]
             int includeChildrenDepth = 3,
-            [Description("If true, includes bounding box information for GameObjects.")]
+            [Description("Include 3D bounds for each GameObject.")]
             bool includeBounds = false,
-            [Description("If true, includes component data for GameObjects.")]
+            [Description("Include serialized component data for each GameObject.")]
             bool includeData = false,
-            [Description("Optional. List of paths to read individually via Reflector.TryReadAt against the " +
-                "prefab root GameObject's serialized data. Path syntax: 'fieldName', '[i]/field', " +
-                "'component/[j]/property'. Mutually exclusive with '" + "viewQuery" + "'.")]
+            [Description("Optional. Token-saving — read only the listed paths from the root GameObject's data " +
+                "via Reflector.TryReadAt. Mutually exclusive with 'viewQuery'.")]
             List<string>? paths = null,
-            [Description("Optional. View-query filter routed through Reflector.View on the prefab root " +
-                "GameObject's serialized data. Mutually exclusive with '" + "paths" + "'.")]
+            [Description("Optional. Token-saving — navigate/filter the root GameObject's data " +
+                "via Reflector.View. Mutually exclusive with 'paths'.")]
             ViewQuery? viewQuery = null
         )
         {
