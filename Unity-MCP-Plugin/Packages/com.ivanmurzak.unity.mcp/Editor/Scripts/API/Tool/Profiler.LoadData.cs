@@ -36,8 +36,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
         [AiSkillDescription("Read back a previously-saved JSON snapshot from `profiler-save-data` and return its raw text.")]
         [AiSkillBody("Reads `filePath` as UTF-8 text and returns the file body unchanged. Caller is responsible " +
             "for parsing.\n\n" +
-            "## Inputs\n\n" +
-            "- `filePath` (required) — path written by `profiler-save-data`.\n\n" +
             "## Errors\n\n" +
             "- Returns `[Error]` when `filePath` is empty, the file does not exist, exceeds the 10 MB size cap, or the read fails.\n\n" +
             "## Behavior\n\n" +

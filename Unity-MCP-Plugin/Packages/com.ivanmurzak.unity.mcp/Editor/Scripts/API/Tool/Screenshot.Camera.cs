@@ -37,10 +37,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
         [AiSkillBody("Captures a screenshot from a camera and returns it as an image. " +
             "If no camera is specified, uses the Main Camera. " +
             "Returns the image directly for visual inspection by the LLM.\n\n" +
-            "## Inputs\n\n" +
-            "- `cameraRef` (optional) — reference to a GameObject hosting a `Camera`. When null, " +
-            "`Camera.main` is used; if there is no main camera, the first entry of `Camera.allCameras` is used.\n" +
-            "- `width` (default 1920) / `height` (default 1080) — output pixels. Must be > 0 and ≤ `MaxDimension`.\n\n" +
             "## Behavior\n\n" +
             "Allocates a temporary `RenderTexture`, swaps it onto the chosen camera, calls `Camera.Render`, reads back " +
             "via `Texture2D.ReadPixels`, encodes as PNG, and restores the camera's prior `targetTexture`. Returns a " +

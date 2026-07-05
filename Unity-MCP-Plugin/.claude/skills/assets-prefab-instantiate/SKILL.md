@@ -7,13 +7,6 @@ description: Instantiate a prefab into the currently active scene at an optional
 
 Instantiates prefab in the current active scene. Use 'assets-find' tool to find prefab assets in the project.
 
-## Inputs
-
-- `prefabAssetPath` — project asset path of the prefab to instantiate.
-- `gameObjectPath` — destination path in the scene; the last segment becomes the new GameObject's name, any prefix is looked up as the parent (must already exist).
-- `position` / `rotation` / `scale` — optional transform; default to zero / zero / one.
-- `isLocalSpace` — when `true`, applies the transform in local space relative to the parent.
-
 ## How to Call
 
 ```bash
@@ -27,23 +20,11 @@ unity-mcp-cli run-tool assets-prefab-instantiate --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool assets-prefab-instantiate --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool assets-prefab-instantiate --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool assets-prefab-instantiate --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
@@ -55,60 +36,6 @@ Read the /unity-initial-setup skill for detailed installation instructions.
 | `rotation` | `any` | No | Transform rotation of the GameObject. Euler angles in degrees. |
 | `scale` | `any` | No | Transform scale of the GameObject. |
 | `isLocalSpace` | `boolean` | No | World or Local space of transform. |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "prefabAssetPath": {
-      "type": "string"
-    },
-    "gameObjectPath": {
-      "type": "string"
-    },
-    "position": {
-      "$ref": "#/$defs/UnityEngine.Vector3"
-    },
-    "rotation": {
-      "$ref": "#/$defs/UnityEngine.Vector3"
-    },
-    "scale": {
-      "$ref": "#/$defs/UnityEngine.Vector3"
-    },
-    "isLocalSpace": {
-      "type": "boolean"
-    }
-  },
-  "$defs": {
-    "UnityEngine.Vector3": {
-      "type": "object",
-      "properties": {
-        "x": {
-          "type": "number"
-        },
-        "y": {
-          "type": "number"
-        },
-        "z": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "x",
-        "y",
-        "z"
-      ],
-      "additionalProperties": false
-    }
-  },
-  "required": [
-    "prefabAssetPath",
-    "gameObjectPath"
-  ]
-}
-```
 
 ## Output
 

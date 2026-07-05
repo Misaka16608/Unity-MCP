@@ -7,10 +7,6 @@ description: Read back a previously-saved JSON snapshot from `profiler-save-data
 
 Reads `filePath` as UTF-8 text and returns the file body unchanged. Caller is responsible for parsing.
 
-## Inputs
-
-- `filePath` (required) — path written by `profiler-save-data`.
-
 ## Errors
 
 - Returns `[Error]` when `filePath` is empty, the file does not exist, exceeds the 10 MB size cap, or the read fails.
@@ -27,45 +23,17 @@ unity-mcp-cli run-tool profiler-load-data --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool profiler-load-data --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool profiler-load-data --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool profiler-load-data --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `filePath` | `string` | Yes | Path to a profiler snapshot file previously written by 'profiler-save-data'. |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "filePath": {
-      "type": "string"
-    }
-  },
-  "required": [
-    "filePath"
-  ]
-}
-```
 
 ## Output
 

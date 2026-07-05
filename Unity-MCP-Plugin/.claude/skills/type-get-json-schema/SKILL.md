@@ -7,14 +7,6 @@ description: Generate a JSON Schema for a C# type name via reflection. Supports 
 
 Generates a JSON Schema for a given C# type name using reflection. Supports primitives, enums, arrays, generic collections, dictionaries, and complex objects. The type must be present in any loaded assembly. Use the full type name (e.g. 'UnityEngine.Vector3') for best results.
 
-## Inputs
-
-- `typeName` — full type name preferred (e.g. `UnityEngine.Vector3`, `System.Collections.Generic.List<System.Int32>`). Simple names work when unambiguous.
-- `descriptionMode` (default `Ignore`) — controls type-level `description`: `Include` keeps it on the target only, `IncludeRecursively` also keeps it inside `$defs`, `Ignore` strips all.
-- `propertyDescriptionMode` (default `Ignore`) — controls property/field/item `description`: `Include` keeps on the target's own properties/items only, `IncludeRecursively` also keeps inside `$defs`, `Ignore` strips all.
-- `includeNestedTypes` (default `false`) — when true, complex nested types are extracted into `$defs` and referenced via `$ref`. Useful for recursive or large types.
-- `writeIndented` (default `false`) — pretty-print the output JSON.
-
 ## How to Call
 
 ```bash
@@ -27,23 +19,11 @@ unity-mcp-cli run-tool type-get-json-schema --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool type-get-json-schema --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool type-get-json-schema --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool type-get-json-schema --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
@@ -54,44 +34,6 @@ Read the /unity-initial-setup skill for detailed installation instructions.
 | `propertyDescriptionMode` | `string` | No | Controls 'description' fields on properties, fields, and array items. Include: keep on the target type's own properties/items only. IncludeRecursively: keep on all properties/items including those inside $defs entries. Ignore: strip all property/item descriptions. Default: Ignore. |
 | `includeNestedTypes` | `boolean` | No | When true, complex nested types are extracted into '$defs' and referenced via '$ref' instead of being inlined. Useful for large or recursive types. Default: false. |
 | `writeIndented` | `boolean` | No | Whether to format the output JSON with indentation for readability. Default: false. |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "typeName": {
-      "type": "string"
-    },
-    "descriptionMode": {
-      "type": "string",
-      "enum": [
-        "Include",
-        "IncludeRecursively",
-        "Ignore"
-      ]
-    },
-    "propertyDescriptionMode": {
-      "type": "string",
-      "enum": [
-        "Include",
-        "IncludeRecursively",
-        "Ignore"
-      ]
-    },
-    "includeNestedTypes": {
-      "type": "boolean"
-    },
-    "writeIndented": {
-      "type": "boolean"
-    }
-  },
-  "required": [
-    "typeName"
-  ]
-}
-```
 
 ## Output
 

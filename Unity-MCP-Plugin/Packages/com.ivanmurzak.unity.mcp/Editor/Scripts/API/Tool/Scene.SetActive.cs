@@ -33,8 +33,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Use '" + SceneListOpenedToolId + "' to enumerate opened scenes first.")]
         [AiSkillBody("Set the specified opened scene as the active scene. " +
             "Use '" + SceneListOpenedToolId + "' tool to get the list of all opened scenes.\n\n" +
-            "## Inputs\n\n" +
-            "- `sceneRef` — `AssetObjectRef` pointing at a `SceneAsset`. The scene must already be opened.\n\n" +
             "## Behavior\n\n" +
             "Resolves the `SceneAsset`, finds the matching opened scene (by name then by path), and calls " +
             "`EditorSceneManager.SetActiveScene`. No-op if the scene is already active. Returns the post-call " +

@@ -7,10 +7,6 @@ description: Unload an opened scene from the Unity Editor (asynchronously via `S
 
 Unload scene from the Opened scenes in Unity Editor. Use 'scene-list-opened' tool to get the list of all opened scenes.
 
-## Inputs
-
-- `name` — required non-empty scene name. Must match an opened scene; otherwise throws.
-
 ## Behavior
 
 Runs `SceneManager.UnloadSceneAsync` on the main thread and awaits completion. Returns an `UnloadSceneResult` containing the scene name and an `AssetObjectRef` to its asset (or `null` if the scene was not backed by an asset on disk).
@@ -23,45 +19,17 @@ unity-mcp-cli run-tool scene-unload --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool scene-unload --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool scene-unload --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool scene-unload --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `name` | `string` | Yes | Name of the loaded scene. |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "name": {
-      "type": "string"
-    }
-  },
-  "required": [
-    "name"
-  ]
-}
-```
 
 ## Output
 

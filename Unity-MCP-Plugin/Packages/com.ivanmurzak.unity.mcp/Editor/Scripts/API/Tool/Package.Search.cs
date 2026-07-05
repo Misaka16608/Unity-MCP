@@ -42,11 +42,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Searches both the Unity registry and locally installed packages (including Git, local, and embedded sources). " +
             "Results are prioritized: exact name match, exact display name match, name substring, display name substring, description substring. " +
             "Note: Online mode fetches exact matches from live registry, then supplements with cached substring matches.\n\n" +
-            "## Inputs\n\n" +
-            "- `query` — package id, name, display name, or description keyword (case-insensitive). Required.\n" +
-            "- `maxResults` (default 10) — caps the returned list.\n" +
-            "- `offlineMode` (default `true`) — when `false`, hits the live registry for exact matches; cached registry " +
-            "data still backs the substring matches in both modes.\n\n" +
             "## Result composition\n\n" +
             "Each entry includes name, display name, latest version, truncated description, install status, installed " +
             "version (if any), and the top-5 compatible versions.")]

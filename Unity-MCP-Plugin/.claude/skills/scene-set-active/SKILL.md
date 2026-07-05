@@ -7,10 +7,6 @@ description: Mark an opened scene as the Editor's active scene (the one new Game
 
 Set the specified opened scene as the active scene. Use 'scene-list-opened' tool to get the list of all opened scenes.
 
-## Inputs
-
-- `sceneRef` — `AssetObjectRef` pointing at a `SceneAsset`. The scene must already be opened.
-
 ## Behavior
 
 Resolves the `SceneAsset`, finds the matching opened scene (by name then by path), and calls `EditorSceneManager.SetActiveScene`. No-op if the scene is already active. Returns the post-call snapshot of opened scenes.
@@ -23,75 +19,17 @@ unity-mcp-cli run-tool scene-set-active --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool scene-set-active --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool scene-set-active --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool scene-set-active --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `sceneRef` | `any` | Yes | Reference to UnityEngine.Object asset instance. It could be Material, ScriptableObject, Prefab, and any other Asset. Anything located in the Assets and Packages folders. |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "sceneRef": {
-      "$ref": "#/$defs/AIGD.AssetObjectRef"
-    }
-  },
-  "$defs": {
-    "System.Type": {
-      "type": "string"
-    },
-    "AIGD.AssetObjectRef": {
-      "type": "object",
-      "properties": {
-        "instanceID": {
-          "type": "integer",
-          "description": "instanceID of the UnityEngine.Object. If this is '0' and 'assetPath' and 'assetGuid' is not provided, empty or null, then it will be used as 'null'."
-        },
-        "assetType": {
-          "$ref": "#/$defs/System.Type",
-          "description": "Type of the asset."
-        },
-        "assetPath": {
-          "type": "string",
-          "description": "Path to the asset within the project. Starts with 'Assets/'"
-        },
-        "assetGuid": {
-          "type": "string",
-          "description": "Unique identifier for the asset."
-        }
-      },
-      "required": [
-        "instanceID"
-      ],
-      "description": "Reference to UnityEngine.Object asset instance. It could be Material, ScriptableObject, Prefab, and any other Asset. Anything located in the Assets and Packages folders."
-    }
-  },
-  "required": [
-    "sceneRef"
-  ]
-}
-```
 
 ## Output
 

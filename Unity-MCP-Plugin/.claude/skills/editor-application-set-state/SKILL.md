@@ -7,11 +7,6 @@ description: Start / stop / pause the Unity Editor 'playmode'. Use 'editor-appli
 
 Control the Unity Editor application state. You can start, stop, or pause the 'playmode'. Use 'editor-application-get-state' tool to get the current state first.
 
-## Inputs
-
-- `isPlaying` (default `false`) — sets `EditorApplication.isPlaying`.
-- `isPaused` (default `false`) — sets `EditorApplication.isPaused`.
-
 ## Behavior
 
 Refuses any state change while `EditorUtility.scriptCompilationFailed` is true — instead throws with the compilation error details so the caller can fix them first. On success returns the post-change `EditorStatsData` snapshot.
@@ -25,23 +20,11 @@ unity-mcp-cli run-tool editor-application-set-state --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool editor-application-set-state --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool editor-application-set-state --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool editor-application-set-state --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
@@ -49,22 +32,6 @@ Read the /unity-initial-setup skill for detailed installation instructions.
 |------|------|----------|-------------|
 | `isPlaying` | `boolean` | No | If true, the 'playmode' will be started. If false, the 'playmode' will be stopped. |
 | `isPaused` | `boolean` | No | If true, the 'playmode' will be paused. If false, the 'playmode' will be resumed. |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "isPlaying": {
-      "type": "boolean"
-    },
-    "isPaused": {
-      "type": "boolean"
-    }
-  }
-}
-```
 
 ## Output
 

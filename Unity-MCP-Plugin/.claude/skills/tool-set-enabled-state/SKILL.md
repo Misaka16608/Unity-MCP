@@ -7,11 +7,6 @@ description: Enable or disable MCP tools by name in batch. Persists the change v
 
 Enable or disable MCP tools by name. Allows controlling which tools are available for the AI agent.
 
-## Inputs
-
-- `tools` — array of `ToolToggleInput { Name, Enabled }`. Non-empty.
-- `includeLogs` (default `false`) — when true, returns per-step operation logs alongside the success map.
-
 ## Behavior
 
 Each entry is resolved against the tool manager's exact-name and case-insensitive lookups. Already-correct state short-circuits as success without writing. The plugin's config is saved once at the end iff at least one tool actually changed state.
@@ -25,23 +20,11 @@ unity-mcp-cli run-tool tool-set-enabled-state --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool tool-set-enabled-state --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool tool-set-enabled-state --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool tool-set-enabled-state --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
@@ -49,52 +32,6 @@ Read the /unity-initial-setup skill for detailed installation instructions.
 |------|------|----------|-------------|
 | `tools` | `any` | Yes | Array of tools with their desired enabled state. |
 | `includeLogs` | `any` | No | Include operation logs in the result. Default: false |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "tools": {
-      "$ref": "#/$defs/AIGD.ToolToggleInput-1"
-    },
-    "includeLogs": {
-      "$ref": "#/$defs/System.Boolean"
-    }
-  },
-  "$defs": {
-    "AIGD.ToolToggleInput": {
-      "type": "object",
-      "properties": {
-        "Name": {
-          "type": "string",
-          "description": "Name of the MCP tool to enable or disable."
-        },
-        "Enabled": {
-          "type": "boolean",
-          "description": "Whether the tool should be enabled (true) or disabled (false)."
-        }
-      },
-      "required": [
-        "Enabled"
-      ]
-    },
-    "AIGD.ToolToggleInput-1": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/AIGD.ToolToggleInput"
-      }
-    },
-    "System.Boolean": {
-      "type": "boolean"
-    }
-  },
-  "required": [
-    "tools"
-  ]
-}
-```
 
 ## Output
 

@@ -39,9 +39,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Note: Built-in packages and packages that are dependencies of other installed packages cannot be removed. " +
             "Note: Package removal may trigger a domain reload. The result will be sent after the reload completes. " +
             "Use '" + PackageListToolId + "' tool to list installed packages first.\n\n" +
-            "## Inputs\n\n" +
-            "- `packageId` — package name (e.g. `com.unity.textmeshpro`). A trailing `@<version>` is stripped automatically " +
-            "before being passed to `Client.Remove`, so accidental versioned IDs still work.\n\n" +
             "## Behavior\n\n" +
             "First verifies the package is installed via an offline `Client.List` — returns a clear `PackageNotFound` " +
             "error if not. On removal failure, surfaces Unity's error message. On success, schedules a post-domain-reload " +

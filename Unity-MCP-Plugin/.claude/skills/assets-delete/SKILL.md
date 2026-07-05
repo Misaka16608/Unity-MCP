@@ -7,10 +7,6 @@ description: Delete the assets at the given project paths. Refreshes the AssetDa
 
 Delete the assets at paths from the project. Does AssetDatabase.Refresh() at the end. Use 'assets-find' tool to find assets before deleting.
 
-## Inputs
-
-- `paths` — project-relative asset paths to delete. Must be non-empty.
-
 ## Behavior
 
 Routes through `AssetDatabase.DeleteAssets`, which deletes the batch atomically. Paths Unity reports as failed are surfaced in `response.Errors`; successfully deleted paths are surfaced in `response.DeletedPaths`. The tool is destructive (removes files from disk).
@@ -23,53 +19,17 @@ unity-mcp-cli run-tool assets-delete --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool assets-delete --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool assets-delete --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool assets-delete --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `paths` | `any` | Yes | The paths of the assets |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "paths": {
-      "$ref": "#/$defs/System.String-1"
-    }
-  },
-  "$defs": {
-    "System.String-1": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    }
-  },
-  "required": [
-    "paths"
-  ]
-}
-```
 
 ## Output
 

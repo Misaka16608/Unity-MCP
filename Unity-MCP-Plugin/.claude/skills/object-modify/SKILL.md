@@ -32,23 +32,11 @@ unity-mcp-cli run-tool object-modify --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool object-modify --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool object-modify --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool object-modify --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
@@ -60,115 +48,6 @@ Only include the fields/properties you want to change.
 Any unknown or invalid fields and properties will be reported in the response. |
 | `pathPatches` | `any` | No | Optional. List of path-scoped patches routed through Reflector.TryModifyAt. |
 | `jsonPatch` | `any` | No | Optional. JSON Merge Patch (RFC 7396, extended with [i]/[key] keys) routed through Reflector.TryPatch. |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "objectRef": {
-      "$ref": "#/$defs/AIGD.ObjectRef"
-    },
-    "objectDiff": {
-      "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember"
-    },
-    "pathPatches": {
-      "$ref": "#/$defs/System.Collections.Generic.List(AIGD.PathPatch)"
-    },
-    "jsonPatch": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "additionalProperties": true
-        }
-      ]
-    }
-  },
-  "$defs": {
-    "AIGD.ObjectRef": {
-      "type": "object",
-      "properties": {
-        "instanceID": {
-          "type": "integer",
-          "description": "instanceID of the UnityEngine.Object. If this is '0', then it will be used as 'null'."
-        }
-      },
-      "required": [
-        "instanceID"
-      ],
-      "description": "Reference to UnityEngine.Object instance. It could be GameObject, Component, Asset, etc. Anything extended from UnityEngine.Object."
-    },
-    "com.IvanMurzak.ReflectorNet.Model.SerializedMemberList": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember"
-      }
-    },
-    "com.IvanMurzak.ReflectorNet.Model.SerializedMember": {
-      "type": "object",
-      "properties": {
-        "typeName": {
-          "type": "string",
-          "description": "Full type name. Eg: 'System.String', 'System.Int32', 'UnityEngine.Vector3', etc."
-        },
-        "name": {
-          "type": "string",
-          "description": "Object name."
-        },
-        "value": {
-          "description": "Value of the object, serialized as a non stringified JSON element. Can be null if the value is not set. Can be default value if the value is an empty object or array json."
-        },
-        "fields": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember",
-            "description": "Nested field value."
-          },
-          "description": "Fields of the object, serialized as a list of 'SerializedMember'."
-        },
-        "props": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember",
-            "description": "Nested property value."
-          },
-          "description": "Properties of the object, serialized as a list of 'SerializedMember'."
-        }
-      },
-      "required": [
-        "typeName"
-      ],
-      "additionalProperties": false
-    },
-    "AIGD.PathPatch": {
-      "type": "object",
-      "properties": {
-        "Path": {
-          "type": "string",
-          "description": "Slash-delimited path to the target field/element/entry. Plain segment navigates a field or property (e.g. 'admin' or 'admin/name'). Use '[i]' for array/list index (e.g. 'planets/[0]/orbitRadius'). Use '[key]' for dictionary entry (e.g. 'config/[timeout]'). A leading '#/' is stripped automatically. Required."
-        },
-        "Value": {
-          "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember",
-          "description": "The new value to write at the path. Use the standard SerializedMember envelope: 'typeName' + 'value' for primitives, or nested 'fields'/'props' for complex types. Required — omitting it overwrites the target with a default empty SerializedMember."
-        }
-      }
-    },
-    "System.Collections.Generic.List(AIGD.PathPatch)": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/AIGD.PathPatch"
-      }
-    }
-  },
-  "required": [
-    "objectRef"
-  ]
-}
-```
 
 ## Output
 

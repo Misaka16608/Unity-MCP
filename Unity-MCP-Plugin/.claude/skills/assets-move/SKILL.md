@@ -7,11 +7,6 @@ description: Move or rename assets at the given project paths. Refreshes the Ass
 
 Move the assets at paths in the project. Should be used for asset rename. Does AssetDatabase.Refresh() at the end. Use 'assets-find' tool to find assets before moving.
 
-## Inputs
-
-- `sourcePaths` — paths of the assets to move.
-- `destinationPaths` — target paths (must match `sourcePaths` length).
-
 ## Behavior
 
 Each pair is moved independently via `AssetDatabase.MoveAsset`. Per-pair failures (Unity's `MoveAsset` returns a non-empty error string) are surfaced in `response.Errors`; successful moves accumulate into `response.MovedPaths`.
@@ -25,23 +20,11 @@ unity-mcp-cli run-tool assets-move --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool assets-move --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool assets-move --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool assets-move --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
@@ -49,34 +32,6 @@ Read the /unity-initial-setup skill for detailed installation instructions.
 |------|------|----------|-------------|
 | `sourcePaths` | `any` | Yes | The paths of the assets to move. |
 | `destinationPaths` | `any` | Yes | The paths of moved assets. |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "sourcePaths": {
-      "$ref": "#/$defs/System.String-1"
-    },
-    "destinationPaths": {
-      "$ref": "#/$defs/System.String-1"
-    }
-  },
-  "$defs": {
-    "System.String-1": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    }
-  },
-  "required": [
-    "sourcePaths",
-    "destinationPaths"
-  ]
-}
-```
 
 ## Output
 

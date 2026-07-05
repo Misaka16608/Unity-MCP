@@ -40,10 +40,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
         [AiSkillBody("List C# class names extended from UnityEngine.Component. " +
             "Use this to find component type names for '" + GameObjectComponentAddToolId + "' tool. " +
             "Results are paginated to avoid overwhelming responses.\n\n" +
-            "## Inputs\n\n" +
-            "- `search` (optional) — case-insensitive substring filter on type names.\n" +
-            "- `page` (default 0, 0-based) — page index.\n" +
-            "- `pageSize` (default 5, range 1..500) — items per page.\n\n" +
             "## Behavior\n\n" +
             "Enumerates `AllComponentTypes` (every non-abstract subclass of `UnityEngine.Component`), filters by " +
             "`search` if supplied, then returns a `ComponentListResult` containing the requested page plus " +

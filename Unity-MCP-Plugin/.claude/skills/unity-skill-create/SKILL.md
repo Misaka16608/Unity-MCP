@@ -154,23 +154,11 @@ unity-mcp-cli run-system-tool unity-skill-create --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-system-tool unity-skill-create --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-system-tool unity-skill-create --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-system-tool unity-skill-create --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
@@ -179,26 +167,6 @@ Read the /unity-initial-setup skill for detailed installation instructions.
 | `path` | `string` | Yes | Path for the C# (.cs) file to be created. Sample: "Assets/Skills/MySkill.cs".
 CRITICAL — Assembly Definition placement: If the project uses Assembly Definition files (.asmdef), you MUST place the script inside a folder that belongs to an assembly definition which already references all required dependencies (e.g. com.IvanMurzak.McpPlugin, UnityEditor, UnityEngine). Placing the file in the wrong assembly will cause compile errors due to missing type references. Before choosing a path, inspect existing .asmdef files with the assets-find tool to identify the correct assembly folder. |
 | `code` | `string` | Yes | C# code for the skill tool. |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "path": {
-      "type": "string"
-    },
-    "code": {
-      "type": "string"
-    }
-  },
-  "required": [
-    "path",
-    "code"
-  ]
-}
-```
 
 ## Output
 

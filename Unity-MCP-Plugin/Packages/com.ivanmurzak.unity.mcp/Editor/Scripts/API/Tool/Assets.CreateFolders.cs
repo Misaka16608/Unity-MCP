@@ -49,9 +49,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Use it to organize scripts and assets in the project. " +
             "Does AssetDatabase.Refresh() at the end. " +
             "Returns the GUID of the newly created folder, if successful.\n\n" +
-            "## Inputs\n\n" +
-            "- `inputs` — list of `{ParentFolderPath, NewFolderName}` entries. Each entry is processed independently; " +
-            "per-entry errors are collected in the response so a single bad input does not abort the batch.\n\n" +
             "## Validation\n\n" +
             "- `NewFolderName` must be non-empty and must not contain any of `/`, `\\`, `<`, `>`, `:`, `\"`, `|`, `?`, `*`, or control characters (these checks are cross-platform even on Linux/Mac).\n" +
             "- `ParentFolderPath` must already exist as an `AssetDatabase.IsValidFolder` path.\n" +

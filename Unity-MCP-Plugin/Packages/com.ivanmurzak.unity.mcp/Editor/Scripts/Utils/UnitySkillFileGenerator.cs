@@ -50,6 +50,12 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Utils
         /// </summary>
         public override bool IncludeInputSchemaPropertyDescriptions => false;
 
+        /// <summary>
+        /// Parameter types are already fully described in the input table —
+        /// hide the Input JSON Schema block to eliminate intra-file $defs duplication.
+        /// </summary>
+        public override bool IncludeInputJsonSchema => false;
+
         /// <inheritdoc/>
         protected override void BuildHowToCallHeading(StringBuilder sb)
         {
@@ -69,10 +75,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Utils
             sb.AppendLine();
             AppendInputFileHint(sb, tool, host, inputExample);
             sb.AppendLine();
-            sb.AppendLine("### Troubleshooting");
-            sb.AppendLine();
-            sb.AppendLine("If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.");
-            sb.AppendLine($"Read the /{Skill_InitialSetup.SkillId} skill for detailed installation instructions.");
+            BuildTroubleshootingSections(sb);
             sb.AppendLine();
         }
 
@@ -84,19 +87,18 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Utils
             var command = tool.ToolType == McpToolType.System
                 ? "run-system-tool"
                 : "run-tool";
-
-            sb.AppendLine($"> For complex input (multi-line strings, code), save the JSON to a file and use:");
-            sb.AppendLine("> ```bash");
-            sb.AppendLine($"> unity-mcp-cli {command} {tool.Name} --input-file args.json");
-            sb.AppendLine("> ```");
-            sb.AppendLine(">");
-            sb.AppendLine("> Or pipe via stdin (recommended):");
-            sb.AppendLine("> ```bash");
-            sb.AppendLine($"> unity-mcp-cli {command} {tool.Name} --input-file - <<'EOF'");
-            sb.AppendLine("> {\"param\": \"value\"}");
-            sb.AppendLine("> EOF");
-            sb.AppendLine("> ```");
+            sb.AppendLine($"> For complex input, save JSON to a file and use `unity-mcp-cli {command} {tool.Name} --input-file args.json`.");
             sb.AppendLine();
+        }
+
+        /// <summary>
+        /// Compact troubleshooting reference — CLI installation details are in the initial-setup skill.
+        /// </summary>
+        protected virtual void BuildTroubleshootingSections(StringBuilder sb)
+        {
+            sb.AppendLine("### Troubleshooting");
+            sb.AppendLine();
+            sb.AppendLine($"For CLI installation or connectivity issues, see the /{Skill_InitialSetup.SkillId} skill.");
         }
     }
 }

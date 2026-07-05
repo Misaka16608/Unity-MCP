@@ -43,23 +43,11 @@ unity-mcp-cli run-tool tests-run --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool tests-run --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool tests-run --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool tests-run --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
@@ -76,60 +64,6 @@ Read the /unity-initial-setup skill for detailed installation instructions.
 | `includeLogs` | `boolean` | No | Include console logs in the test results (default: false). |
 | `logType` | `string` | No | Log type filter for console logs. Options: 'Log', 'Warning', 'Assert', 'Error', 'Exception'. (default: 'Warning') |
 | `includeLogsStacktrace` | `boolean` | No | Include stack traces for console logs in the test results (default: false). This is huge amount of data, use only if really needed. |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "testMode": {
-      "type": "string",
-      "enum": [
-        "EditMode",
-        "PlayMode"
-      ]
-    },
-    "testAssembly": {
-      "type": "string"
-    },
-    "testNamespace": {
-      "type": "string"
-    },
-    "testClass": {
-      "type": "string"
-    },
-    "testMethod": {
-      "type": "string"
-    },
-    "includePassingTests": {
-      "type": "boolean"
-    },
-    "includeMessages": {
-      "type": "boolean"
-    },
-    "includeStacktrace": {
-      "type": "boolean"
-    },
-    "includeLogs": {
-      "type": "boolean"
-    },
-    "logType": {
-      "type": "string",
-      "enum": [
-        "Error",
-        "Assert",
-        "Warning",
-        "Log",
-        "Exception"
-      ]
-    },
-    "includeLogsStacktrace": {
-      "type": "boolean"
-    }
-  }
-}
-```
 
 ## Output
 

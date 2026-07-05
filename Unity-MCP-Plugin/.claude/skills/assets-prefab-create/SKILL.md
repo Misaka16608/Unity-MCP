@@ -7,13 +7,6 @@ description: Create a Prefab (or Prefab Variant) at a project asset path. Source
 
 Create a prefab from a GameObject in the current active scene. The prefab will be saved in the project assets at the specified path. Creates folders recursively if they do not exist. If the source GameObject is already a prefab instance and 'connectGameObjectToPrefab' is true, a Prefab Variant is created automatically. To create a Prefab Variant from an existing prefab asset, provide 'sourcePrefabAssetPath' instead of 'gameObjectRef'. Use 'gameobject-find' tool to find the target GameObject first.
 
-## Inputs (mutually exclusive sources)
-
-- `prefabAssetPath` — required. Must start with `Assets/` and end with `.prefab`.
-- `gameObjectRef` — scene GameObject to convert (or to seed a Prefab Variant from when it is already a prefab instance).
-- `sourcePrefabAssetPath` — existing prefab asset to seed a Prefab Variant from. Cannot be combined with `gameObjectRef`.
-- `connectGameObjectToPrefab` (default `true`) — when sourcing from a scene GameObject, connect the scene object to the new prefab asset (becoming a prefab instance). Ignored for `sourcePrefabAssetPath` (always creates a variant).
-
 ## Behavior
 
 Creates intermediate folders along `prefabAssetPath` if they don't already exist. Returns an `AssetObjectRef` pointing at the new prefab asset.
@@ -29,23 +22,11 @@ unity-mcp-cli run-tool assets-prefab-create --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool assets-prefab-create --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool assets-prefab-create --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool assets-prefab-create --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
@@ -55,69 +36,6 @@ Read the /unity-initial-setup skill for detailed installation instructions.
 | `gameObjectRef` | `any` | No | Reference to a scene GameObject to create the prefab from. If the GameObject is already a prefab instance, a Prefab Variant is created when 'connectGameObjectToPrefab' is true. Optional if 'sourcePrefabAssetPath' is provided. |
 | `sourcePrefabAssetPath` | `string` | No | Path to an existing prefab asset to create a Prefab Variant from (e.g. 'Assets/Prefabs/Base.prefab'). When provided, a temporary instance is created, saved as a Prefab Variant, and cleaned up. Optional if 'gameObjectRef' is provided. |
 | `connectGameObjectToPrefab` | `boolean` | No | If true, the scene GameObject will be connected to the new prefab (becoming a prefab instance). If the source is already a prefab instance, this creates a Prefab Variant. If false, the prefab asset is created but the scene GameObject remains unchanged. Ignored when 'sourcePrefabAssetPath' is used (always creates a variant). |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "prefabAssetPath": {
-      "type": "string"
-    },
-    "gameObjectRef": {
-      "$ref": "#/$defs/AIGD.GameObjectRef"
-    },
-    "sourcePrefabAssetPath": {
-      "type": "string"
-    },
-    "connectGameObjectToPrefab": {
-      "type": "boolean"
-    }
-  },
-  "$defs": {
-    "System.Type": {
-      "type": "string"
-    },
-    "AIGD.GameObjectRef": {
-      "type": "object",
-      "properties": {
-        "instanceID": {
-          "type": "integer",
-          "description": "instanceID of the UnityEngine.Object. If it is '0' and 'path', 'name', 'assetPath' and 'assetGuid' is not provided, empty or null, then it will be used as 'null'. Priority: 1 (Recommended)"
-        },
-        "path": {
-          "type": "string",
-          "description": "Path of a GameObject in the hierarchy Sample 'character/hand/finger/particle'. Priority: 2."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of a GameObject in hierarchy. Priority: 3."
-        },
-        "assetType": {
-          "$ref": "#/$defs/System.Type",
-          "description": "Type of the asset."
-        },
-        "assetPath": {
-          "type": "string",
-          "description": "Path to the asset within the project. Starts with 'Assets/'"
-        },
-        "assetGuid": {
-          "type": "string",
-          "description": "Unique identifier for the asset."
-        }
-      },
-      "required": [
-        "instanceID"
-      ],
-      "description": "Find GameObject in opened Prefab or in the active Scene."
-    }
-  },
-  "required": [
-    "prefabAssetPath"
-  ]
-}
-```
 
 ## Output
 

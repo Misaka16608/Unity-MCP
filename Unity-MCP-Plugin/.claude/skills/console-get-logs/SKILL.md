@@ -7,13 +7,6 @@ description: Retrieve Unity Editor logs from the MCP plugin's `LogCollector`, op
 
 Retrieves Unity Editor logs. Useful for debugging and monitoring Unity Editor activity.
 
-## Inputs
-
-- `maxEntries` (default 100, minimum 1) — caps the size of the returned array.
-- `logTypeFilter` — Unity `LogType` filter; `null` returns all severities.
-- `includeStackTrace` (default `false`) — include stack-trace strings in each entry.
-- `lastMinutes` (default 0) — when non-zero, only logs from the last N minutes are returned.
-
 ## How to Call
 
 ```bash
@@ -25,23 +18,11 @@ unity-mcp-cli run-tool console-get-logs --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool console-get-logs --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool console-get-logs --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool console-get-logs --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
@@ -51,40 +32,6 @@ Read the /unity-initial-setup skill for detailed installation instructions.
 | `logTypeFilter` | `any` | No | Filter by log type. 'null' means All. |
 | `includeStackTrace` | `boolean` | No | Include stack traces in the output. Default: false |
 | `lastMinutes` | `integer` | No | Return logs from the last N minutes. If 0, returns all available logs. Default: 0 |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "maxEntries": {
-      "type": "integer"
-    },
-    "logTypeFilter": {
-      "$ref": "#/$defs/UnityEngine.LogType"
-    },
-    "includeStackTrace": {
-      "type": "boolean"
-    },
-    "lastMinutes": {
-      "type": "integer"
-    }
-  },
-  "$defs": {
-    "UnityEngine.LogType": {
-      "type": "string",
-      "enum": [
-        "Error",
-        "Assert",
-        "Warning",
-        "Log",
-        "Exception"
-      ]
-    }
-  }
-}
-```
 
 ## Output
 

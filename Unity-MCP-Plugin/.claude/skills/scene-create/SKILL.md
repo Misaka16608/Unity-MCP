@@ -7,12 +7,6 @@ description: Create a new Unity scene asset and save it at the given `.unity` pa
 
 Create new scene in the project assets. Use 'scene-list-opened' tool to list all opened scenes after creation.
 
-## Inputs
-
-- `path` — must end with `.unity`. Non-empty.
-- `newSceneSetup` (default `DefaultGameObjects`) — Unity's `NewSceneSetup` flag (`EmptyScene` or `DefaultGameObjects`).
-- `newSceneMode` (default `Single`) — `Single` closes other scenes, `Additive` keeps them open.
-
 ## Behavior
 
 Calls `EditorSceneManager.NewScene` + `SaveScene(path)` on the main thread, repaints editor windows, and returns a `SceneDataShallow` for the newly created scene.
@@ -27,23 +21,11 @@ unity-mcp-cli run-tool scene-create --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool scene-create --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool scene-create --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool scene-create --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
@@ -52,44 +34,6 @@ Read the /unity-initial-setup skill for detailed installation instructions.
 | `path` | `string` | Yes | Path to the scene file. Should end with ".unity" extension. |
 | `newSceneSetup` | `any` | No |  |
 | `newSceneMode` | `any` | No |  |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "path": {
-      "type": "string"
-    },
-    "newSceneSetup": {
-      "$ref": "#/$defs/UnityEditor.SceneManagement.NewSceneSetup"
-    },
-    "newSceneMode": {
-      "$ref": "#/$defs/UnityEditor.SceneManagement.NewSceneMode"
-    }
-  },
-  "$defs": {
-    "UnityEditor.SceneManagement.NewSceneSetup": {
-      "type": "string",
-      "enum": [
-        "EmptyScene",
-        "DefaultGameObjects"
-      ]
-    },
-    "UnityEditor.SceneManagement.NewSceneMode": {
-      "type": "string",
-      "enum": [
-        "Single",
-        "Additive"
-      ]
-    }
-  },
-  "required": [
-    "path"
-  ]
-}
-```
 
 ## Output
 

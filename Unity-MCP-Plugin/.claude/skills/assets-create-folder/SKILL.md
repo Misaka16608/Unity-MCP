@@ -7,10 +7,6 @@ description: Create a new folder under a parent folder inside 'Assets/'. The par
 
 Creates a new folder in the specified parent folder. The parent folder string must start with the 'Assets' folder, and all folders within the parent folder string must already exist. For example, when specifying 'Assets/ParentFolder1/ParentFolder2/', the new folder will be created in 'ParentFolder2' only if ParentFolder1 and ParentFolder2 already exist. Use it to organize scripts and assets in the project. Does AssetDatabase.Refresh() at the end. Returns the GUID of the newly created folder, if successful.
 
-## Inputs
-
-- `inputs` — list of `{ParentFolderPath, NewFolderName}` entries. Each entry is processed independently; per-entry errors are collected in the response so a single bad input does not abort the batch.
-
 ## Validation
 
 - `NewFolderName` must be non-empty and must not contain any of `/`, `\`, `<`, `>`, `:`, `"`, `|`, `?`, `*`, or control characters (these checks are cross-platform even on Linux/Mac).
@@ -25,66 +21,17 @@ unity-mcp-cli run-tool assets-create-folder --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool assets-create-folder --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool assets-create-folder --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool assets-create-folder --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `inputs` | `any` | Yes | The paths for the folders to create. |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "inputs": {
-      "$ref": "#/$defs/AIGD.CreateFolderInput-1"
-    }
-  },
-  "$defs": {
-    "AIGD.CreateFolderInput": {
-      "type": "object",
-      "properties": {
-        "ParentFolderPath": {
-          "type": "string",
-          "description": "The parent folder path where the new folder will be created."
-        },
-        "NewFolderName": {
-          "type": "string",
-          "description": "The name of the new folder to create."
-        }
-      }
-    },
-    "AIGD.CreateFolderInput-1": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/AIGD.CreateFolderInput"
-      }
-    }
-  },
-  "required": [
-    "inputs"
-  ]
-}
-```
 
 ## Output
 

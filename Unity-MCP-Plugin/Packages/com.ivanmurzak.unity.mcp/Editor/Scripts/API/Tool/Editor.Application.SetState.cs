@@ -35,9 +35,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
         [AiSkillBody("Control the Unity Editor application state. " +
             "You can start, stop, or pause the 'playmode'. " +
             "Use '" + EditorApplicationGetStateToolId + "' tool to get the current state first.\n\n" +
-            "## Inputs\n\n" +
-            "- `isPlaying` (default `false`) — sets `EditorApplication.isPlaying`.\n" +
-            "- `isPaused` (default `false`) — sets `EditorApplication.isPaused`.\n\n" +
             "## Behavior\n\n" +
             "Refuses any state change while `EditorUtility.scriptCompilationFailed` is true — instead throws with " +
             "the compilation error details so the caller can fix them first. On success returns the post-change " +

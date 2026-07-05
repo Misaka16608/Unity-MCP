@@ -37,9 +37,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
         [AiSkillBody("Delete the script file(s). " +
             "Does AssetDatabase.Refresh() and waits for Unity compilation to complete before reporting results. " +
             "Use '" + ScriptReadToolId + "' tool to read existing script files first.\n\n" +
-            "## Inputs\n\n" +
-            "- `files` — non-empty array of `.cs` paths. Every entry must exist on disk.\n" +
-            "- `requestId` — required for the processing/delivered-later contract.\n\n" +
             "## Behavior\n\n" +
             "Validates the array (non-empty, every entry ends with `.cs`, every entry exists). Deletes each file plus " +
             "its sibling `.meta` (when present). Calls `AssetDatabase.Refresh` and schedules a post-compilation " +

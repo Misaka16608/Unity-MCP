@@ -34,11 +34,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Use '" + GameObjectFindToolId + "' to locate the GameObjects first.")]
         [AiSkillBody("Set parent GameObject to list of GameObjects in opened Prefab or in a Scene. " +
             "Use '" + GameObjectFindToolId + "' tool to find the target GameObjects first.\n\n" +
-            "## Inputs\n\n" +
-            "- `gameObjectRefs` — list of children to reparent.\n" +
-            "- `parentGameObjectRef` — new parent. Must resolve, otherwise the call returns early with an error string.\n" +
-            "- `worldPositionStays` (default `true`) — preserve world-space transform when reparenting (passed to " +
-            "`Transform.SetParent`).\n\n" +
             "## Behavior\n\n" +
             "Iterates `gameObjectRefs` and reparents each one independently; per-item resolve errors are appended to " +
             "the returned status string instead of throwing. After the loop, if at least one reparent succeeded, marks " +

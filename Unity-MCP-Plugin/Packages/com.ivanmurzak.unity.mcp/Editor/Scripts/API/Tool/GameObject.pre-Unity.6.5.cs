@@ -97,12 +97,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                 "Returns component type, enabled state, and optionally serialized fields and properties. " +
                 "Use this to inspect component data before modifying it. " +
                 "Use 'gameobject-find' tool to get the list of all components on the GameObject.\n\n" +
-                "## Inputs\n\n" +
-                "- `gameObjectRef` — the host GameObject.\n" +
-                "- `componentRef` — the specific component to inspect (matched by index or instance ID).\n" +
-                "- `includeFields` (default `true`) — populate the legacy `Fields` list.\n" +
-                "- `includeProperties` (default `true`) — populate the legacy `Properties` list.\n" +
-                "- `deepSerialization` (default `false`) — when populating legacy lists, recurse into nested members.\n\n" +
                 "## Path-scoped reads (token-saving)\n\n" +
                 "Supply `paths` (a list of paths) to read only the listed fields/elements via `Reflector.TryReadAt`, " +
                 "or `viewQuery` (a `ViewQuery`) to navigate to a subtree and/or filter by name regex / max depth / type " +

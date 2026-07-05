@@ -36,9 +36,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Should be used for asset rename. " +
             "Does AssetDatabase.Refresh() at the end. " +
             "Use '" + AssetsFindToolId + "' tool to find assets before moving.\n\n" +
-            "## Inputs\n\n" +
-            "- `sourcePaths` — paths of the assets to move.\n" +
-            "- `destinationPaths` — target paths (must match `sourcePaths` length).\n\n" +
             "## Behavior\n\n" +
             "Each pair is moved independently via `AssetDatabase.MoveAsset`. " +
             "Per-pair failures (Unity's `MoveAsset` returns a non-empty error string) are surfaced in " +

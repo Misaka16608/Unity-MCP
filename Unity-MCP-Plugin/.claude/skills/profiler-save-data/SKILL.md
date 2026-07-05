@@ -7,10 +7,6 @@ description: Save a snapshot of profiler-derived stats (status + memory + render
 
 Composes the outputs of `profiler-get-status`, `profiler-get-memory-stats`, `profiler-get-rendering-stats`, `profiler-get-script-stats` and `profiler-capture-frame` into a single JSON document and writes it to `filePath`. Creates any missing parent directories.
 
-## Inputs
-
-- `filePath` (required) — absolute or workspace-relative path to write to.
-
 ## Errors
 
 - Returns `[Error]` when `filePath` is empty or the write fails (message includes the underlying exception text).
@@ -27,45 +23,17 @@ unity-mcp-cli run-tool profiler-save-data --input '{
 }'
 ```
 
-> For complex input (multi-line strings, code), save the JSON to a file and use:
-> ```bash
-> unity-mcp-cli run-tool profiler-save-data --input-file args.json
-> ```
->
-> Or pipe via stdin (recommended):
-> ```bash
-> unity-mcp-cli run-tool profiler-save-data --input-file - <<'EOF'
-> {"param": "value"}
-> EOF
-> ```
-
+> For complex input, save JSON to a file and use `unity-mcp-cli run-tool profiler-save-data --input-file args.json`.
 
 ### Troubleshooting
 
-If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
-Read the /unity-initial-setup skill for detailed installation instructions.
+For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 
 ## Input
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `filePath` | `string` | Yes | Absolute or workspace-relative output file path. |
-
-### Input JSON Schema
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "filePath": {
-      "type": "string"
-    }
-  },
-  "required": [
-    "filePath"
-  ]
-}
-```
 
 ## Output
 
