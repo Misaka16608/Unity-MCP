@@ -75,8 +75,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Utils
             sb.AppendLine();
             AppendInputFileHint(sb, tool, host, inputExample);
             sb.AppendLine();
-            BuildTroubleshootingSections(sb);
-            sb.AppendLine();
         }
 
         /// <inheritdoc/>
@@ -91,10 +89,11 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Utils
             sb.AppendLine();
         }
 
+        /// <inheritdoc/>
         /// <summary>
         /// Compact troubleshooting reference — CLI installation details are in the initial-setup skill.
         /// </summary>
-        protected virtual void BuildTroubleshootingSections(StringBuilder sb)
+        protected override void BuildTroubleshootingSections(StringBuilder sb)
         {
             sb.AppendLine("### Troubleshooting");
             sb.AppendLine();
