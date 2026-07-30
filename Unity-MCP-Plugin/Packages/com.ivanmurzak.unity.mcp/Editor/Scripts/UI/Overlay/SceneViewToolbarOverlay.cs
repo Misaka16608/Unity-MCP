@@ -16,12 +16,16 @@ using UnityEngine;
 
 namespace com.IvanMurzak.Unity.MCP.Editor.UI
 {
+#if UNITY_2022_3_OR_NEWER
     [Overlay(typeof(SceneView), id: Id, displayName: "AI",
         defaultDisplay = true,
         defaultDockZone = DockZone.TopToolbar,
         defaultDockPosition = DockPosition.Top,
         defaultDockIndex = 0,
         defaultLayout = Layout.HorizontalToolbar)]
+#else
+    [Overlay(typeof(SceneView), Id, "AI", true)]
+#endif
     [Icon(EditorAssetLoader.PackageLogoIconPath)]
     public class SceneViewToolbarOverlay : ToolbarOverlay
     {
@@ -29,7 +33,9 @@ namespace com.IvanMurzak.Unity.MCP.Editor.UI
 
         private SceneViewToolbarOverlay() : base(OpenWindowButton.Id)
         {
+#if UNITY_2022_3_OR_NEWER
             collapsedIcon = EditorAssetLoader.LoadAssetAtPath<Texture2D>(EditorAssetLoader.PackageLogoIcon);
+#endif
         }
     }
 }

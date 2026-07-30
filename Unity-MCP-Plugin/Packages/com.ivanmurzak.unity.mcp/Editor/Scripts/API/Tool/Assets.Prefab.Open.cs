@@ -49,7 +49,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             GameObjectRef gameObjectRef
         )
         {
-            if (gameObjectRef?.IsValid(out var validationError) == false)
+            var validationError = string.Empty;
+            if (gameObjectRef == null || !gameObjectRef.IsValid(out validationError))
                 throw new ArgumentException(validationError, nameof(gameObjectRef));
 
             MainThread.Instance.Run(() =>

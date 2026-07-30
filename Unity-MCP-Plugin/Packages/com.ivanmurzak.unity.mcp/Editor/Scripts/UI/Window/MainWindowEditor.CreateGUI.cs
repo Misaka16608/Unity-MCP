@@ -329,17 +329,20 @@ namespace com.IvanMurzak.Unity.MCP.Editor.UI
                 SaveChanges($"[AI Game Developer] LogLevel Changed: {evt.newValue}");
             });
 
-            var inputTimeoutMs = root.Q<IntegerField>("inputTimeoutMs");
-            inputTimeoutMs.value = UnityMcpPluginEditor.TimeoutMs;
+            var inputTimeoutMs = root.Q<TextField>("inputTimeoutMs");
+            inputTimeoutMs.value = UnityMcpPluginEditor.TimeoutMs.ToString();
             inputTimeoutMs.tooltip = $"Timeout for MCP tool execution in milliseconds.\n\nMost tools only need a few seconds.\n\nSet this higher than your longest test execution time.\n\nImportant: Also update the '{Args.PluginTimeout}' argument in your AI agent configuration to match this value so your AI agent doesn't timeout before the tool completes.";
             inputTimeoutMs.RegisterCallback<FocusOutEvent>(evt =>
             {
-                var newValue = Mathf.Max(1000, inputTimeoutMs.value);
+                if (!int.TryParse(inputTimeoutMs.value, out var timeoutMs))
+                    timeoutMs = UnityMcpPluginEditor.TimeoutMs;
+
+                var newValue = Mathf.Max(1000, timeoutMs);
                 if (newValue == UnityMcpPluginEditor.TimeoutMs)
                     return;
 
-                if (newValue != inputTimeoutMs.value)
-                    inputTimeoutMs.SetValueWithoutNotify(newValue);
+                if (newValue.ToString() != inputTimeoutMs.value)
+                    inputTimeoutMs.SetValueWithoutNotify(newValue.ToString());
 
                 UnityMcpPluginEditor.TimeoutMs = newValue;
 
