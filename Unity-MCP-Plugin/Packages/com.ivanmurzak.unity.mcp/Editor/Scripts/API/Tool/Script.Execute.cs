@@ -28,6 +28,14 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
     public static partial class Tool_Script
     {
         public const string ScriptExecuteToolId = "script-execute";
+
+        /// <summary>
+        /// 正在执行的代码的 hash。用于防止 MCP 客户端超时重试导致同一脚本被重复调度到主线程。
+        /// </summary>
+        private static string? s_ExecutingCodeHash;
+        private static DateTime s_ExecutingCodeFinishTime = DateTime.MinValue;
+        private static readonly TimeSpan ExecutionCooldown = TimeSpan.FromSeconds(30);
+
         [AiTool
         (
             ScriptExecuteToolId,
@@ -98,6 +106,31 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             if (string.IsNullOrEmpty(methodName))
                 throw new Exception($"'{nameof(methodName)}' cannot be null or empty.");
 
+            // 防止 MCP 超时重试导致的重复执行：
+            // 1. 同一段代码正在执行时 → 直接拒绝
+            // 2. 执行完成后 30 秒内 → 拒绝（冷却期防止重试风暴）
+            var codeHash = csharpCode.GetHashCode().ToString();
+            if (s_ExecutingCodeHash == codeHash)
+            {
+                var logger = UnityLoggerFactory.LoggerFactory.CreateLogger("Tool_Script.Execute");
+                logger.LogWarning("Duplicate script-execute call detected while same code is still executing. Skipping.");
+                return new SerializedMember
+                {
+                    name = "result",
+                    typeName = "System.String"
+                }.SetJsonValue("\"Duplicate call skipped — previous execution still in progress.\"");
+            }
+            if ((DateTime.UtcNow - s_ExecutingCodeFinishTime) < ExecutionCooldown)
+            {
+                var logger = UnityLoggerFactory.LoggerFactory.CreateLogger("Tool_Script.Execute");
+                logger.LogWarning("Script-execute call within cooldown period after previous execution. Skipping.");
+                return new SerializedMember
+                {
+                    name = "result",
+                    typeName = "System.String"
+                }.SetJsonValue("\"Call skipped — in cooldown after previous execution.\"");
+            }
+
             string codeToCompile;
             if (isMethodBody)
             {
@@ -114,12 +147,15 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                 codeToCompile = csharpCode;
             }
 
-            return MainThread.Instance.Run(() =>
+            s_ExecutingCodeHash = codeHash;
+            try
             {
-                var logger = UnityLoggerFactory.LoggerFactory.CreateLogger("Tool_Script.Execute");
+                return MainThread.Instance.Run(() =>
+                {
+                    var logger = UnityLoggerFactory.LoggerFactory.CreateLogger("Tool_Script.Execute");
 
-                // Compile C# code using Roslyn and execute it immediately
-                if (!ExecuteCSharpCode(
+                    // Compile C# code using Roslyn and execute it immediately
+                    if (!ExecuteCSharpCode(
                     className: className,
                     methodName: methodName,
                     code: codeToCompile,
@@ -158,6 +194,12 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                     serializedResultByReflector.name = JsonSchema.Result;
                 return serializedResultByReflector;
             });
+            }
+            finally
+            {
+                s_ExecutingCodeHash = null;
+                s_ExecutingCodeFinishTime = DateTime.UtcNow;
+            }
         }
 
         static string GenerateFullCode(
