@@ -12,6 +12,10 @@ on:
   push:
     branches:
       - main
+  # Manual escape hatch: a merge to `main` does not ALWAYS create the push
+  # event (observed 2026-07-19 across several repos - merge landed, zero runs).
+  # Without this, a release that misses its push event cannot be cut at all.
+  workflow_dispatch:
 
 jobs:
   test-cli:
@@ -113,24 +117,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Activate Unity license
-        id: activate
-        uses: ./.github/actions/unity/activate-license
-        with:
-          unityVersion: "2022.3.62f3"
-          unity-email: ${{ secrets.UNITY_EMAIL }}
-          unity-password: ${{ secrets.UNITY_PASSWORD }}
-
-      - name: Decode Unity license
-        run: |
-          echo "$LICENSE_B64" | base64 -d > /tmp/unity_license.ulf
-          DELIM="UNITY_LIC_EOF_$(openssl rand -hex 16)"
-          echo "UNITY_LICENSE<<$DELIM" >> "$GITHUB_ENV"
-          cat /tmp/unity_license.ulf >> "$GITHUB_ENV"
-          printf '\n%s\n' "$DELIM" >> "$GITHUB_ENV"
-        env:
-          LICENSE_B64: ${{ steps.activate.outputs.license }}
-        shell: bash
+      # License: game-ci consumes the stored UNITY_LICENSE (.ulf) secret directly
+      # on the test/build steps below. No per-run web scraping.
 
       - name: Cache Unity Library
         uses: actions/cache@v5
@@ -141,6 +129,7 @@ jobs:
       - name: Test Unity Installer (EditMode)
         uses: game-ci/unity-test-runner@08fd329f00a18efa297140b14ac28ebce742759e # node24 runtime (PR #304); revert to @v4 once game-ci moves the tag
         env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -173,6 +162,7 @@ jobs:
       - name: Export Unity Package
         uses: game-ci/unity-builder@v5
         env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
@@ -413,19 +403,19 @@ jobs:
       release_notes: ${{ steps.read_notes.outputs.release_body }}
     steps:
       - name: Download release notes artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: release-notes
           path: ./release-notes
 
       - name: Download Unity installer artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: unity-installer-package
           path: ./assets
 
       - name: Download signed UPM package artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: signed-upm-package
           path: ./assets
@@ -446,8 +436,7 @@ jobs:
           # Expose the release notes body as a job output so downstream jobs
           # (publish_discord) can consume it without re-downloading the artifact.
           # Use a randomized delimiter so a release-notes line that happens to
-          # match the sentinel cannot terminate the heredoc early (mirrors the
-          # UNITY_LICENSE pattern above).
+          # match the sentinel cannot terminate the heredoc early.
           DELIM="ENDOFRELEASEBODY_$(openssl rand -hex 16)"
           {
             printf 'release_body<<%s\n' "$DELIM"
@@ -456,7 +445,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create Tag and Release with all assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.check-version-tag.outputs.version }}
           name: ${{ needs.check-version-tag.outputs.version }}
@@ -523,7 +512,13 @@ jobs:
           if [ ${#full_message} -gt 2000 ]; then
             # Remove lines from the end until it fits, keeping the link
             link_text=$'\n\n'"📦 **[View Full Release](${release_url})**"
-            max_length=$((2000 - ${#link_text}))
+            # The truncated message is reassembled below as `<notes>` + `\n...` + `<link>`,
+            # so the ellipsis line costs 4 more characters on top of the link. Budget for
+            # BOTH, otherwise the assembled message reaches 2004 chars and Discord rejects
+            # the whole announcement with a 400 — silently, since the step does not gate on
+            # the response. Godot-MCP and Unreal-MCP carry the identical budget.
+            ellipsis_text=$'\n'"..."
+            max_length=$((2000 - ${#link_text} - ${#ellipsis_text}))
 
             # Split into lines and rebuild until we exceed the limit
             truncated_notes=""
@@ -546,12 +541,59 @@ jobs:
             --arg content "$full_message" \
             '{content: $content, flags: 4}')
 
-          # Send to Discord webhook
-          curl -X POST "$DISCORD_WEBHOOK" \
+          # Send to the Discord webhook and GATE ON THE RESPONSE.
+          #
+          # curl exits 0 on an HTTP error status, so a bare `curl -X POST` proves only
+          # that a request was attempted -- never that Discord accepted it. Capture the
+          # status explicitly: 400 (payload over the 2000-char limit), 429 (rate
+          # limited) and 401/404 (revoked or wrong webhook) all used to leave this job
+          # green with no announcement posted and nothing in the log to say so. That
+          # blind spot is how the truncation-budget bug fixed above went unnoticed.
+          #
+          # `--retry 3` covers only what a retry can fix -- curl's transient set (429,
+          # 5xx and timeouts), honouring Discord's `Retry-After` header -- and
+          # `--retry-max-time` bounds it. A 4xx other than 429 is a permanent rejection
+          # and is never retried, and neither is a refused connection (that would need
+          # `--retry-connrefused`); both fail fast and loudly below. Accepted tradeoff:
+          # a webhook execute has no idempotency key, so a retry whose predecessor was
+          # actually processed (response lost in flight) can post the announcement
+          # twice. A duplicate announcement is strictly better than a missing one.
+          #
+          # The webhook URL is a credential: it is never echoed and `-v` is never
+          # passed (curl's own `-S` error text names at most the host). The response
+          # body IS printed -- it is Discord's JSON error object, the single most
+          # useful thing for whoever debugs the next failure.
+          response_file="$(mktemp)"
+          curl_exit=0
+          http_code=$(curl -sS -X POST "$DISCORD_WEBHOOK" \
             -H "Content-Type: application/json" \
-            -d "$json_payload"
+            -d "$json_payload" \
+            --retry 3 \
+            --retry-max-time 60 \
+            -o "$response_file" \
+            -w '%{http_code}') || curl_exit=$?
 
-          echo "Release notes sent to Discord for version $version"
+          # Safe to fail here: nothing downstream depends on this job and the release is
+          # already published, so a red step cannot block or undo it. It DOES redden the
+          # workflow run conclusion (and the release badge) -- that is the intended
+          # visibility, and the message below states exactly what did and did not ship.
+          if [ "$curl_exit" -ne 0 ]; then
+            echo "::error::Discord announcement for version ${version} was NOT delivered (curl exit ${curl_exit}). The release itself is published; only the announcement is missing."
+            exit 1
+          fi
+
+          case "$http_code" in
+            2??)
+              echo "Release notes accepted by Discord for version ${version} (HTTP ${http_code})."
+              ;;
+            *)
+              echo "::error::Discord REJECTED the release notes for version ${version} (HTTP ${http_code}). The release itself is published; only the announcement is missing."
+              echo "Discord response body:"
+              head -c 2000 "$response_file"
+              echo ""
+              exit 1
+              ;;
+          esac
 
   deploy:
     needs: release-unity-plugin
@@ -573,21 +615,21 @@ jobs:
     if: always()
     steps:
       - name: Delete Unity Package artifacts
-        uses: geekyeggo/delete-artifact@v5
+        uses: geekyeggo/delete-artifact@v6
         with:
           name: unity-installer-package
           failOnError: false
         continue-on-error: true
 
       - name: Delete signed UPM package artifacts
-        uses: geekyeggo/delete-artifact@v5
+        uses: geekyeggo/delete-artifact@v6
         with:
           name: signed-upm-package
           failOnError: false
         continue-on-error: true
 
       - name: Delete release notes artifacts
-        uses: geekyeggo/delete-artifact@v5
+        uses: geekyeggo/delete-artifact@v6
         with:
           name: release-notes
           failOnError: false
