@@ -32,7 +32,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
         )]
         [AiSkillDescription("Duplicate a batch of GameObjects in the currently opened Prefab or active Scene. " +
             "Marks each affected scene as dirty after duplication. " +
-            "Use '" + GameObjectFindToolId + "' to locate the source GameObjects first.")]
+            "Use '" + GameObjectFindToolId + "' to locate the source GameObjects first. " +
+            "Returns refs to the newly created duplicates.")]
         [AiSkillBody("Duplicate GameObjects in opened Prefab or in a Scene. " +
             "Use '" + GameObjectFindToolId + "' tool to find the target GameObjects first.\n\n" +
             "## Behavior\n\n" +
@@ -40,15 +41,14 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Sets `Selection.entityIds`/`instanceIDs` to the sources and invokes " +
             "`Unsupported.DuplicateGameObjectsUsingPasteboard()` (Unity's canonical duplicate routine). " +
             "Marks every distinct affected scene dirty so the duplicated objects are saved with the scene. " +
-            "Returns refs to the sources (the duplicates are reachable via the post-call `Selection`).")]
+            "Returns refs to the newly created duplicates (in Selection order).")]
         [Description("Duplicate GameObjects in opened Prefab or in a Scene. " +
-            "Use '" + GameObjectFindToolId + "' tool to find the target GameObjects first.")]
+            "Use '" + GameObjectFindToolId + "' tool to find the target GameObjects first. " +
+            "Returns refs to the newly created duplicates.")]
         public List<GameObjectRef> Duplicate(GameObjectRefList gameObjectRefs)
         {
             return MainThread.Instance.Run(() =>
             {
-                var prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
-
                 var gos = new List<GameObject>(gameObjectRefs.Count);
 
                 for (int i = 0; i < gameObjectRefs.Count; i++)
@@ -72,7 +72,11 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                 Unsupported.DuplicateGameObjectsUsingPasteboard();
                 UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
 
-                var modifiedScenes = Selection.gameObjects
+                var duplicates = Selection.gameObjects
+                    .Where(go => go != null)
+                    .ToList();
+
+                var modifiedScenes = duplicates
                     .Select(go => go.scene)
                     .Distinct()
                     .ToList();
@@ -80,7 +84,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                 foreach (var scene in modifiedScenes)
                     EditorSceneManager.MarkSceneDirty(scene);
 
-                return gos
+                return duplicates
                     .Select(go => new GameObjectRef(go))
                     .ToList();
             });
