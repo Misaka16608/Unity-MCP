@@ -541,6 +541,15 @@ public static class Prompt_ScriptingCode
 
 Use **[Unity MCP](https://github.com/IvanMurzak/Unity-MCP)** in your game/app. Use Tools, Resources or Prompts. By default there are no tools, you would need to implement your custom.
 
+Runtime MCP is **excluded from Player builds by default**. The Editor integration remains available without any extra setup.
+To opt a Player target into Runtime MCP:
+
+1. Open **Project Settings > Player > Other Settings > Scripting Define Symbols**.
+2. Add `UNITY_MCP_RUNTIME_ENABLED` for every Player target that should contain Runtime MCP.
+3. Let Unity finish recompiling. The dependency resolver will update the NuGet DLL import settings automatically.
+
+Remove the symbol to return that target to Editor-only mode. Runtime code and its NuGet dependencies are then excluded from subsequent Player builds.
+
 ```csharp
 // Build MCP plugin
 var mcpPlugin = UnityMcpPluginRuntime.Initialize(builder =>

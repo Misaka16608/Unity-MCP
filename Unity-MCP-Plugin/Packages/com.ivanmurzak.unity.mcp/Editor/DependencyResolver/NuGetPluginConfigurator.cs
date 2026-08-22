@@ -38,6 +38,12 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
     {
         const string Tag = NuGetConfig.LogTag;
 
+#if UNITY_MCP_RUNTIME_ENABLED
+        const bool RuntimeMcpEnabledForPlayer = true;
+#else
+        const bool RuntimeMcpEnabledForPlayer = false;
+#endif
+
         /// <summary>
         /// Configures PluginImporter for every DLL recorded in the NuGet install manifest.
         /// Called after packages are installed/restored.
@@ -57,7 +63,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
             {
                 foreach (var (packageId, entry) in manifest.Packages)
                 {
-                    var includeInBuild = ShouldIncludeInBuild(packageId);
+                    var includeInBuild = ShouldIncludeInBuild(packageId, RuntimeMcpEnabledForPlayer);
                     foreach (var dll in entry.Dlls)
                     {
                         var dllPath = Path.Combine(NuGetConfig.InstallPath, dll);
@@ -224,10 +230,15 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
         /// <summary>
         /// Determines if a DLL should be included in game builds based on its
         /// owning package ID. Configured packages use their IncludeInBuild flag.
-        /// Transitive dependencies default to included (runtime packages depend on them).
+        /// Runtime MCP is opt-in; when disabled, every managed NuGet dependency is
+        /// Editor-only. When enabled, transitive dependencies default to included
+        /// because runtime packages may depend on them.
         /// </summary>
-        static bool ShouldIncludeInBuild(string packageId)
+        internal static bool ShouldIncludeInBuild(string packageId, bool runtimeMcpEnabledForPlayer)
         {
+            if (!runtimeMcpEnabledForPlayer)
+                return false;
+
             foreach (var package in NuGetConfig.Packages)
             {
                 if (string.Equals(packageId, package.Id, System.StringComparison.OrdinalIgnoreCase))

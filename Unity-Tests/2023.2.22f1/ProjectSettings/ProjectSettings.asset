@@ -664,7 +664,7 @@ PlayerSettings:
     PS5: UNITY_MCP_READY
     QNX: UNITY_MCP_READY
     Server: UNITY_MCP_READY
-    Standalone: UNITY_MCP_READY
+    Standalone: UNITY_MCP_READY;UNITY_MCP_RUNTIME_ENABLED
     WebGL: UNITY_MCP_READY
     Windows Store Apps: UNITY_MCP_READY
     XboxOne: UNITY_MCP_READY

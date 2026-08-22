@@ -9,7 +9,8 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [
-        "UNITY_MCP_READY"
+        "UNITY_MCP_READY",
+        "UNITY_EDITOR || UNITY_INCLUDE_TESTS"
     ],
     "versionDefines": [],
     "noEngineReferences": false
