@@ -151,25 +151,33 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
             if (!needsChange)
                 return;
 
-            if (anyPlatform)
-            {
-                importer.SetCompatibleWithAnyPlatform(true);
-                importer.SetExcludeEditorFromAnyPlatform(excludeEditor);
-                // Explicitly sync the individual Editor platform flag. Unity's initial import
-                // sometimes leaves Editor at enabled=0 even when Any Platform is on without
-                // Exclude Editor; without this call, the stale 0 persists in the .meta and
-                // Editor-side loading fails (e.g., "Unloading broken assembly ..." for DLLs
-                // whose transitive deps are also editor-disabled).
-                importer.SetCompatibleWithEditor(!excludeEditor);
-            }
-            else
-            {
-                importer.SetCompatibleWithAnyPlatform(false);
-                importer.SetCompatibleWithEditor(editorOnly);
-            }
+            // Always write the complete compatibility state. In particular, disabling
+            // Any Platform does not clear a stale "Exclude Editor" flag by itself. If
+            // that flag survives, needsChange remains true after every domain reload and
+            // SaveAndReimport creates an endless import -> compile -> reload loop.
+            ApplyCompatibilityState(
+                importer.SetCompatibleWithAnyPlatform,
+                importer.SetExcludeEditorFromAnyPlatform,
+                importer.SetCompatibleWithEditor,
+                anyPlatform,
+                excludeEditor,
+                expectedEditor);
 
             importer.SaveAndReimport();
             Debug.Log($"{Tag} Configured '{assemblyName}': anyPlatform={anyPlatform}, excludeEditor={excludeEditor}, editorOnly={editorOnly}");
+        }
+
+        internal static void ApplyCompatibilityState(
+            Action<bool> setAnyPlatform,
+            Action<bool> setExcludeEditor,
+            Action<bool> setEditor,
+            bool anyPlatform,
+            bool excludeEditor,
+            bool editor)
+        {
+            setAnyPlatform(anyPlatform);
+            setExcludeEditor(excludeEditor);
+            setEditor(editor);
         }
 
         /// <summary>

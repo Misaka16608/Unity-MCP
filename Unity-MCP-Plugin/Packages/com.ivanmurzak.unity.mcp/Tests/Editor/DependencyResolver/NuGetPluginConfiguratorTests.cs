@@ -50,5 +50,26 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests.DependencyResolverTests
                 "Some.Transitive.Package",
                 runtimeMcpEnabledForPlayer: true));
         }
+
+        [Test]
+        public void ApplyCompatibilityState_DisablingAnyPlatform_ClearsStaleExcludeEditor()
+        {
+            var anyPlatform = true;
+            var excludeEditor = true;
+            var editor = false;
+
+            NuGetPluginConfigurator.ApplyCompatibilityState(
+                value => anyPlatform = value,
+                value => excludeEditor = value,
+                value => editor = value,
+                anyPlatform: false,
+                excludeEditor: false,
+                editor: false);
+
+            Assert.IsFalse(anyPlatform);
+            Assert.IsFalse(excludeEditor,
+                "A stale Exclude Editor flag would cause ConfigureDll to reimport on every domain reload.");
+            Assert.IsFalse(editor);
+        }
     }
 }
