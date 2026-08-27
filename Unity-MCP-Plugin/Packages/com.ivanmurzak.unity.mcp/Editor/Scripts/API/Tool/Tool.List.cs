@@ -53,6 +53,11 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Use the `includeDescription` / `includeInputs` toggles to control the response size.")]
         [AiSkillBody("List all Unity-MCP tools registered in the connected Unity Editor instance. " +
             "Optionally filter by regex across tool names, descriptions, and arguments.\n\n" +
+            "## Inputs\n\n" +
+            "- `regexSearch` (optional) — case-insensitive regex with a 200ms execution-timeout guard. " +
+            "Invalid regex throws an `ArgumentException`. Matches name → description → input names → input descriptions.\n" +
+            "- `includeDescription` (default `false`) — populate each tool's `Description` field.\n" +
+            "- `includeInputs` (default `None`) — one of `None`, `Inputs` (names only), `InputsWithDescription` (names + descriptions).\n\n" +
             "## Behavior\n\n" +
             "Iterates `UnityMcpPluginEditor.Instance.Tools.GetAllTools()`, evaluates the filter (if any), and projects " +
             "each surviving tool into a `ToolInfoData` honoring the verbosity toggles.")]

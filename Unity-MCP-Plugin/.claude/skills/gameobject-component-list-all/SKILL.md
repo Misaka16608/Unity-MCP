@@ -7,6 +7,12 @@ description: List the fully-qualified C# type names of every concrete `UnityEngi
 
 List C# class names extended from UnityEngine.Component. Use this to find component type names for 'gameobject-component-add' tool. Results are paginated to avoid overwhelming responses.
 
+## Inputs
+
+- `search` (optional) — case-insensitive substring filter on type names.
+- `page` (default 0, 0-based) — page index.
+- `pageSize` (default 5, range 1..500) — items per page.
+
 ## Behavior
 
 Enumerates `AllComponentTypes` (every non-abstract subclass of `UnityEngine.Component`), filters by `search` if supplied, then returns a `ComponentListResult` containing the requested page plus `TotalCount` / `TotalPages` so the caller can iterate.
@@ -21,11 +27,23 @@ unity-mcp-cli run-tool gameobject-component-list-all --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool gameobject-component-list-all --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool gameobject-component-list-all --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool gameobject-component-list-all --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
@@ -34,6 +52,25 @@ For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 | `search` | `string` | No | Substring for searching components. Could be empty. |
 | `page` | `integer` | No | Page number (0-based). Default is 0. |
 | `pageSize` | `integer` | No | Number of items per page. Default is 5. Max is 500. |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "search": {
+      "type": "string"
+    },
+    "page": {
+      "type": "integer"
+    },
+    "pageSize": {
+      "type": "integer"
+    }
+  }
+}
+```
 
 ## Output
 

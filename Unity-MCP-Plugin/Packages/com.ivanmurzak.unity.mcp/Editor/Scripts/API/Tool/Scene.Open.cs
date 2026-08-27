@@ -31,7 +31,13 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Returns the post-open list of all opened scenes. " +
             "Use '" + Tool_Assets.AssetsFindToolId + "' to locate the scene asset first.")]
         [AiSkillBody("Open scene from the project asset file. " +
-            "Use '" + Tool_Assets.AssetsFindToolId + "' tool to find the scene asset first.")]
+            "Use '" + Tool_Assets.AssetsFindToolId + "' tool to find the scene asset first.\n\n" +
+            "## Inputs\n\n" +
+            "- `sceneRef` — `AssetObjectRef` pointing at a `SceneAsset`. Throws if the asset cannot be resolved or " +
+            "is not a `SceneAsset`.\n" +
+            "- `loadSceneMode` (default `Single`):\n" +
+            "  - `Single` — closes the currently opened scenes and opens this one.\n" +
+            "  - `Additive` — keeps the currently opened scenes and opens this one alongside them.")]
         [Description("Open scene from the project asset file. " +
             "Use '" + Tool_Assets.AssetsFindToolId + "' tool to find the scene asset first.")]
         public SceneDataShallow[] Open

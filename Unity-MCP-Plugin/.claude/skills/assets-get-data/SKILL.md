@@ -25,11 +25,23 @@ unity-mcp-cli run-tool assets-get-data --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool assets-get-data --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool assets-get-data --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool assets-get-data --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
@@ -38,6 +50,85 @@ For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 | `assetRef` | `any` | Yes | Reference to UnityEngine.Object asset instance. It could be Material, ScriptableObject, Prefab, and any other Asset. Anything located in the Assets and Packages folders. |
 | `paths` | `any` | No | Optional. List of paths to read individually via Reflector.TryReadAt. Path syntax: 'fieldName', 'nested/field', 'arrayField/[i]', 'dictField/[key]'. Mutually exclusive with 'viewQuery'. |
 | `viewQuery` | `any` | No | Optional. View-query filter routed through Reflector.View — combines a starting Path, a case-insensitive NamePattern regex, MaxDepth, and an optional TypeFilter. Mutually exclusive with 'paths'. |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "assetRef": {
+      "$ref": "#/$defs/AIGD.AssetObjectRef"
+    },
+    "paths": {
+      "$ref": "#/$defs/System.Collections.Generic.List(System.String)"
+    },
+    "viewQuery": {
+      "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.ViewQuery"
+    }
+  },
+  "$defs": {
+    "System.Type": {
+      "type": "string"
+    },
+    "AIGD.AssetObjectRef": {
+      "type": "object",
+      "properties": {
+        "instanceID": {
+          "type": "integer",
+          "description": "instanceID of the UnityEngine.Object. If this is '0' and 'assetPath' and 'assetGuid' is not provided, empty or null, then it will be used as 'null'."
+        },
+        "assetType": {
+          "$ref": "#/$defs/System.Type",
+          "description": "Type of the asset."
+        },
+        "assetPath": {
+          "type": "string",
+          "description": "Path to the asset within the project. Starts with 'Assets/'"
+        },
+        "assetGuid": {
+          "type": "string",
+          "description": "Unique identifier for the asset."
+        }
+      },
+      "required": [
+        "instanceID"
+      ],
+      "description": "Reference to UnityEngine.Object asset instance. It could be Material, ScriptableObject, Prefab, and any other Asset. Anything located in the Assets and Packages folders."
+    },
+    "System.Collections.Generic.List(System.String)": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "com.IvanMurzak.ReflectorNet.Model.ViewQuery": {
+      "type": "object",
+      "properties": {
+        "Path": {
+          "type": "string",
+          "description": "Navigate to this path first, then serialize only that subtree. Path segments are separated by '/'. Use '[i]' for array/list index (e.g. 'users/[2]/name') and '[key]' for dictionary entry (e.g. 'config/[timeout]'). A leading '#/' is stripped automatically. Examples: 'admin/name', 'users/[0]/email', 'config/[timeout]'. Leave null to start from the root object."
+        },
+        "NamePattern": {
+          "type": "string",
+          "description": "Case-insensitive .NET regex pattern matched against field and property names. Only branches containing at least one match are kept in the result tree. Examples: 'orbitRadius' (exact name), 'orbit.*' (prefix match), 'radius|speed' (either name). When nothing matches, the root envelope is returned with empty fields/props. Leave null to return all fields and properties without filtering."
+        },
+        "MaxDepth": {
+          "type": "integer",
+          "description": "Maximum nesting depth of the returned serialized tree. 0 = root type name and value only — no nested fields or properties. 1 = one level of fields/props visible, their children stripped. 2 = two levels visible, and so on. Leave null (default) for unlimited depth."
+        },
+        "TypeFilter": {
+          "$ref": "#/$defs/System.Type",
+          "description": "When set, prunes the result tree to members whose runtime type is assignable to this type. Non-matching branches are removed; the root envelope is always preserved. Examples: typeof(float) keeps only float fields, typeof(IEnumerable) keeps only collections. Leave null to include members of any type."
+        }
+      }
+    }
+  },
+  "required": [
+    "assetRef"
+  ]
+}
+```
 
 ## Output
 

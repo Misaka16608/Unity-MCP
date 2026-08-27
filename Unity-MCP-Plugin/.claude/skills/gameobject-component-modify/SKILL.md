@@ -31,11 +31,23 @@ unity-mcp-cli run-tool gameobject-component-modify --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool gameobject-component-modify --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool gameobject-component-modify --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool gameobject-component-modify --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
@@ -48,6 +60,164 @@ Only include the fields/properties you want to change.
 Any unknown or invalid fields and properties will be reported in the response. |
 | `pathPatches` | `any` | No | Optional. List of path-scoped patches routed through Reflector.TryModifyAt. Each entry targets one field/element/entry by path. Path syntax: 'fieldName', 'nested/field', 'arrayField/[i]', 'dictField/[key]'. |
 | `jsonPatch` | `any` | No | Optional. JSON Merge Patch (RFC 7396, extended with [i]/[key] keys) routed through Reflector.TryPatch. Allows multiple fields at any depth to be updated in a single call. Use '$type' for compatible-subtype replacement. |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "gameObjectRef": {
+      "$ref": "#/$defs/AIGD.GameObjectRef"
+    },
+    "componentRef": {
+      "$ref": "#/$defs/AIGD.ComponentRef"
+    },
+    "componentDiff": {
+      "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember"
+    },
+    "pathPatches": {
+      "$ref": "#/$defs/System.Collections.Generic.List(AIGD.PathPatch)"
+    },
+    "jsonPatch": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": true
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "System.Type": {
+      "type": "string"
+    },
+    "AIGD.GameObjectRef": {
+      "type": "object",
+      "properties": {
+        "instanceID": {
+          "type": "integer",
+          "description": "instanceID of the UnityEngine.Object. If it is '0' and 'path', 'name', 'assetPath' and 'assetGuid' is not provided, empty or null, then it will be used as 'null'. Priority: 1 (Recommended)"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path of a GameObject in the hierarchy Sample 'character/hand/finger/particle'. Priority: 2."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of a GameObject in hierarchy. Priority: 3."
+        },
+        "assetType": {
+          "$ref": "#/$defs/System.Type",
+          "description": "Type of the asset."
+        },
+        "assetPath": {
+          "type": "string",
+          "description": "Path to the asset within the project. Starts with 'Assets/'"
+        },
+        "assetGuid": {
+          "type": "string",
+          "description": "Unique identifier for the asset."
+        }
+      },
+      "required": [
+        "instanceID"
+      ],
+      "description": "Find GameObject in opened Prefab or in the active Scene."
+    },
+    "AIGD.ComponentRef": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "type": "integer",
+          "description": "Component 'index' attached to a gameObject. The first index is '0' and that is usually Transform or RectTransform. Priority: 2. Default value is -1."
+        },
+        "typeName": {
+          "type": "string",
+          "description": "Component type full name. Sample 'UnityEngine.Transform'. If the gameObject has two components of the same type, the output component is unpredictable. Priority: 3. Default value is null."
+        },
+        "instanceID": {
+          "type": "integer",
+          "description": "instanceID of the UnityEngine.Object. If this is '0', then it will be used as 'null'."
+        }
+      },
+      "required": [
+        "index",
+        "instanceID"
+      ],
+      "description": "Component reference. Used to find a Component at GameObject."
+    },
+    "com.IvanMurzak.ReflectorNet.Model.SerializedMemberList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember"
+      }
+    },
+    "com.IvanMurzak.ReflectorNet.Model.SerializedMember": {
+      "type": "object",
+      "properties": {
+        "typeName": {
+          "type": "string",
+          "description": "Full type name. Eg: 'System.String', 'System.Int32', 'UnityEngine.Vector3', etc."
+        },
+        "name": {
+          "type": "string",
+          "description": "Object name."
+        },
+        "value": {
+          "description": "Value of the object, serialized as a non stringified JSON element. Can be null if the value is not set. Can be default value if the value is an empty object or array json."
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember",
+            "description": "Nested field value."
+          },
+          "description": "Fields of the object, serialized as a list of 'SerializedMember'."
+        },
+        "props": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember",
+            "description": "Nested property value."
+          },
+          "description": "Properties of the object, serialized as a list of 'SerializedMember'."
+        }
+      },
+      "required": [
+        "typeName"
+      ],
+      "additionalProperties": false
+    },
+    "AIGD.PathPatch": {
+      "type": "object",
+      "properties": {
+        "Path": {
+          "type": "string",
+          "description": "Slash-delimited path to the target field/element/entry. Plain segment navigates a field or property (e.g. 'admin' or 'admin/name'). Use '[i]' for array/list index (e.g. 'planets/[0]/orbitRadius'). Use '[key]' for dictionary entry (e.g. 'config/[timeout]'). A leading '#/' is stripped automatically. Required."
+        },
+        "Value": {
+          "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember",
+          "description": "The new value to write at the path. Use the standard SerializedMember envelope: 'typeName' + 'value' for primitives, or nested 'fields'/'props' for complex types. Required — omitting it overwrites the target with a default empty SerializedMember."
+        }
+      }
+    },
+    "System.Collections.Generic.List(AIGD.PathPatch)": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/AIGD.PathPatch"
+      }
+    }
+  },
+  "required": [
+    "gameObjectRef",
+    "componentRef"
+  ]
+}
+```
 
 ## Output
 

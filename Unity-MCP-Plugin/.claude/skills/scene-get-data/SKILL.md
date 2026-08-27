@@ -36,11 +36,23 @@ unity-mcp-cli run-tool scene-get-data --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool scene-get-data --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool scene-get-data --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool scene-get-data --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
@@ -53,6 +65,69 @@ For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 | `includeData` | `boolean` | No | If true, includes component data for GameObjects. |
 | `paths` | `any` | No | Optional. List of paths to read individually via Reflector.TryReadAt against the scene's root-GameObjects array. Path syntax: 'fieldName', '[i]/field', '[i]/component/[j]/property'. Mutually exclusive with 'viewQuery'. |
 | `viewQuery` | `any` | No | Optional. View-query filter routed through Reflector.View on the scene's root-GameObjects array. Mutually exclusive with 'paths'. |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "openedSceneName": {
+      "type": "string"
+    },
+    "includeRootGameObjects": {
+      "type": "boolean"
+    },
+    "includeChildrenDepth": {
+      "type": "integer"
+    },
+    "includeBounds": {
+      "type": "boolean"
+    },
+    "includeData": {
+      "type": "boolean"
+    },
+    "paths": {
+      "$ref": "#/$defs/System.Collections.Generic.List(System.String)"
+    },
+    "viewQuery": {
+      "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.ViewQuery"
+    }
+  },
+  "$defs": {
+    "System.Collections.Generic.List(System.String)": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "System.Type": {
+      "type": "string"
+    },
+    "com.IvanMurzak.ReflectorNet.Model.ViewQuery": {
+      "type": "object",
+      "properties": {
+        "Path": {
+          "type": "string",
+          "description": "Navigate to this path first, then serialize only that subtree. Path segments are separated by '/'. Use '[i]' for array/list index (e.g. 'users/[2]/name') and '[key]' for dictionary entry (e.g. 'config/[timeout]'). A leading '#/' is stripped automatically. Examples: 'admin/name', 'users/[0]/email', 'config/[timeout]'. Leave null to start from the root object."
+        },
+        "NamePattern": {
+          "type": "string",
+          "description": "Case-insensitive .NET regex pattern matched against field and property names. Only branches containing at least one match are kept in the result tree. Examples: 'orbitRadius' (exact name), 'orbit.*' (prefix match), 'radius|speed' (either name). When nothing matches, the root envelope is returned with empty fields/props. Leave null to return all fields and properties without filtering."
+        },
+        "MaxDepth": {
+          "type": "integer",
+          "description": "Maximum nesting depth of the returned serialized tree. 0 = root type name and value only — no nested fields or properties. 1 = one level of fields/props visible, their children stripped. 2 = two levels visible, and so on. Leave null (default) for unlimited depth."
+        },
+        "TypeFilter": {
+          "$ref": "#/$defs/System.Type",
+          "description": "When set, prunes the result tree to members whose runtime type is assignable to this type. Non-matching branches are removed; the root envelope is always preserved. Examples: typeof(float) keeps only float fields, typeof(IEnumerable) keeps only collections. Leave null to include members of any type."
+        }
+      }
+    }
+  }
+}
+```
 
 ## Output
 

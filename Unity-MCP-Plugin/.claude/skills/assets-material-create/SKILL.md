@@ -7,6 +7,11 @@ description: Create a new Material asset with default parameters at a given 'Ass
 
 Create new material asset with default parameters. Creates folders recursively if they do not exist. Provide proper 'shaderName' - use 'assets-shader-list-all' tool to find available shaders.
 
+## Inputs
+
+- `assetPath` — must start with `Assets/` and end with `.mat`.
+- `shaderName` — name resolvable via `UnityEngine.Shader.Find`.
+
 ## Behavior
 
 Throws if the path is empty, malformed, or the shader cannot be resolved. Creates a default Material from the resolved shader, saves it, refreshes the AssetDatabase, and returns an `AssetObjectRef` pointing at the new asset.
@@ -20,11 +25,23 @@ unity-mcp-cli run-tool assets-material-create --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool assets-material-create --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool assets-material-create --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool assets-material-create --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
@@ -32,6 +49,26 @@ For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 |------|------|----------|-------------|
 | `assetPath` | `string` | Yes | Asset path. Starts with 'Assets/'. Ends with '.mat'. |
 | `shaderName` | `string` | Yes | Name of the shader that need to be used to create the material. |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "assetPath": {
+      "type": "string"
+    },
+    "shaderName": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "assetPath",
+    "shaderName"
+  ]
+}
+```
 
 ## Output
 

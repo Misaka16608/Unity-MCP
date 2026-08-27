@@ -7,6 +7,12 @@ description: Search the built-in assets of the Unity Editor (located at Resource
 
 Search the built-in assets of the Unity Editor located in the built-in resources: Resources/unity_builtin_extra. Doesn't support GUIDs since built-in assets do not have them.
 
+## Inputs
+
+- `name` (optional) — case-insensitive name fragment. Underscores, hyphens, spaces, and periods delimit search words so partial-word matching works.
+- `type` (optional) — restrict results to assets assignable to this type (e.g. `UnityEngine.Texture2D`).
+- `maxResults` — cap on returned list size (default 10).
+
 ## Ranking
 
 Results are sorted by descending match quality: exact match → substring match → all-words match → partial-words match. Within a rank, results are sorted alphabetically by filename for stable ordering.
@@ -21,11 +27,23 @@ unity-mcp-cli run-tool assets-find-built-in --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool assets-find-built-in --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool assets-find-built-in --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool assets-find-built-in --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
@@ -34,6 +52,30 @@ For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 | `name` | `string` | No | The name of the asset to filter by. |
 | `type` | `any` | No | The type of the asset to filter by. |
 | `maxResults` | `integer` | No | Maximum number of assets to return. If the number of found assets exceeds this limit, the result will be truncated. |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "type": {
+      "$ref": "#/$defs/System.Type"
+    },
+    "maxResults": {
+      "type": "integer"
+    }
+  },
+  "$defs": {
+    "System.Type": {
+      "type": "string"
+    }
+  }
+}
+```
 
 ## Output
 

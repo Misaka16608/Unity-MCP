@@ -33,6 +33,10 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Pair with '" + ScriptUpdateOrCreateToolId + "' to write back.")]
         [AiSkillBody("Reads the content of a script file and returns it as a string. " +
             "Use '" + ScriptUpdateOrCreateToolId + "' tool to update or create script files.\n\n" +
+            "## Inputs\n\n" +
+            "- `filePath` — required `.cs` path. Throws if missing on disk.\n" +
+            "- `lineFrom` (default 1, 1-based) — start line; clamped into valid range.\n" +
+            "- `lineTo` (default -1 = end-of-file, 1-based) — inclusive end line; clamped into valid range.\n\n" +
             "## Behavior\n\n" +
             "Reads the file with `File.ReadAllLines` and slices `[lineFrom..lineTo]` (inclusive). The slice indices are " +
             "clamped — passing out-of-range `lineFrom`/`lineTo` is forgiving (read returns at-most the whole file).")]

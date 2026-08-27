@@ -12,6 +12,12 @@ Call C# method. Any method could be called, even private methods. It requires to
 - `typeNameMatchLevel` / `methodNameMatchLevel` (default 1 — contains ignoring case): `0` ignore filter, `1` contains-ic, `2` contains-cs, `3` starts-with-ic, `4` starts-with-cs, `5` equals-ic, `6` equals-cs.
 - `parametersMatchLevel` (default 2 — equals): `0` ignore filter, `1` count matches, `2` equals.
 
+## Inputs
+
+- `targetObject` (optional) — for instance methods. When null, a new instance is created from the declaring type. Required shape: `{ type, value }` (value is deserialized to `type`).
+- `inputParameters` (optional) — list of `{ type, name, value }`. Names are enhanced against the resolved method signature if omitted.
+- `executeInMainThread` (default `true`) — Unity API calls should keep this true; set false only for thread-safe pure logic.
+
 ## How to Call
 
 ```bash
@@ -27,11 +33,23 @@ unity-mcp-cli run-tool reflection-method-call --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool reflection-method-call --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool reflection-method-call --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool reflection-method-call --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
@@ -45,6 +63,130 @@ For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 | `targetObject` | `any` | No | Specify target object to call method on. Should be null if the method is static or if there is no specific target instance. New instance of the specified class will be created if the method is instance method and the targetObject is null. Required: type - full type name of the object to call method on, value - serialized object value (it will be deserialized to the specified type). |
 | `inputParameters` | `any` | No | Method input parameters. Per each parameter specify: type - full type name of the object to call method on, name - parameter name, value - serialized object value (it will be deserialized to the specified type). |
 | `executeInMainThread` | `boolean` | No | Set to true if the method should be executed in the main thread. Otherwise, set to false. |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "filter": {
+      "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.MethodRef"
+    },
+    "knownNamespace": {
+      "type": "boolean"
+    },
+    "typeNameMatchLevel": {
+      "type": "integer"
+    },
+    "methodNameMatchLevel": {
+      "type": "integer"
+    },
+    "parametersMatchLevel": {
+      "type": "integer"
+    },
+    "targetObject": {
+      "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember"
+    },
+    "inputParameters": {
+      "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMemberList"
+    },
+    "executeInMainThread": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "System.Collections.Generic.List(com.IvanMurzak.ReflectorNet.Model.MethodRef-Parameter)": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.MethodRef-Parameter",
+        "description": "Parameter of a method. Contains type and name of the parameter."
+      }
+    },
+    "com.IvanMurzak.ReflectorNet.Model.MethodRef-Parameter": {
+      "type": "object",
+      "properties": {
+        "typeName": {
+          "type": "string",
+          "description": "Type of the parameter including namespace. Sample: 'System.String', 'System.Int32', 'UnityEngine.GameObject', etc."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the parameter. It may be empty if the name is unknown."
+        }
+      },
+      "description": "Parameter of a method. Contains type and name of the parameter."
+    },
+    "com.IvanMurzak.ReflectorNet.Model.MethodRef": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Namespace of the class. It may be empty if the class is in the global namespace or the namespace is unknown."
+        },
+        "typeName": {
+          "type": "string",
+          "description": "Class name, or substring a class name. It may be empty if the class is unknown."
+        },
+        "methodName": {
+          "type": "string",
+          "description": "Method name, or substring of the method name. It may be empty if the method is unknown."
+        },
+        "inputParameters": {
+          "$ref": "#/$defs/System.Collections.Generic.List(com.IvanMurzak.ReflectorNet.Model.MethodRef-Parameter)",
+          "description": "List of input parameters. Can be null if the method has no parameters or the parameters are unknown."
+        }
+      },
+      "description": "Method reference. Used to find method in codebase of the project."
+    },
+    "com.IvanMurzak.ReflectorNet.Model.SerializedMemberList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember"
+      }
+    },
+    "com.IvanMurzak.ReflectorNet.Model.SerializedMember": {
+      "type": "object",
+      "properties": {
+        "typeName": {
+          "type": "string",
+          "description": "Full type name. Eg: 'System.String', 'System.Int32', 'UnityEngine.Vector3', etc."
+        },
+        "name": {
+          "type": "string",
+          "description": "Object name."
+        },
+        "value": {
+          "description": "Value of the object, serialized as a non stringified JSON element. Can be null if the value is not set. Can be default value if the value is an empty object or array json."
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember",
+            "description": "Nested field value."
+          },
+          "description": "Fields of the object, serialized as a list of 'SerializedMember'."
+        },
+        "props": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/com.IvanMurzak.ReflectorNet.Model.SerializedMember",
+            "description": "Nested property value."
+          },
+          "description": "Properties of the object, serialized as a list of 'SerializedMember'."
+        }
+      },
+      "required": [
+        "typeName"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "filter"
+  ]
+}
+```
 
 ## Output
 

@@ -108,6 +108,20 @@ Manage scene objects and hierarchy.
 | **Screenshot / Scene View** | `screenshot-scene-view` | Capture a screenshot from the Unity Editor Scene View. |
 | **Screenshot / Isolated GameObject** | `screenshot-isolated` | Render a target GameObject in isolation from a chosen angle, with optional Composite (2x2) view. |
 
+## 🖱️ Runtime Input (UGUI/EventSystem)
+
+These tools are opt-in (`Enabled = false`) and use Unity's in-process UGUI/EventSystem path. They do not move or
+click the operating-system mouse. Coordinates are Unity screen pixels with a bottom-left origin.
+
+| Tool | ID | Description |
+| :--- | :--- | :--- |
+| **Runtime Input / Find Clickable** | `runtime-input-find-clickable` | Find active UGUI click targets by exact name or hierarchy path and return screen bounds plus a recommended point. |
+| **Runtime Input / Hit Test** | `runtime-input-hit-test` | Dry-run a point RaycastAll or rectangle intersection query; returns the primary hit, raycast chain, occluders, or candidates without dispatching events. |
+| **Runtime Input / Click** | `runtime-input-click` | Dispatch a UGUI pointer enter/down/up/click/exit sequence at a screen coordinate. Requires Play Mode and returns the hit and dispatched events. |
+
+The first implementation supports UGUI/EventSystem and is designed to make raycast obstruction visible. NGUI, UI
+Toolkit, physics raycasters, and OS-global input are not included in this adapter yet.
+
 ## 🧪 Testing
 | Tool | ID | Description |
 | :--- | :--- | :--- |

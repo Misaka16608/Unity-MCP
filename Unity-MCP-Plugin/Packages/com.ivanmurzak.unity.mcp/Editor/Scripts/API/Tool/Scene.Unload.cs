@@ -36,6 +36,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Use '" + SceneListOpenedToolId + "' to find the scene name first.")]
         [AiSkillBody("Unload scene from the Opened scenes in Unity Editor. " +
             "Use '" + SceneListOpenedToolId + "' tool to get the list of all opened scenes.\n\n" +
+            "## Inputs\n\n" +
+            "- `name` — required non-empty scene name. Must match an opened scene; otherwise throws.\n\n" +
             "## Behavior\n\n" +
             "Runs `SceneManager.UnloadSceneAsync` on the main thread and awaits completion. Returns an " +
             "`UnloadSceneResult` containing the scene name and an `AssetObjectRef` to its asset (or `null` if the " +

@@ -44,11 +44,23 @@ unity-mcp-cli run-tool screenshot-isolated --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool screenshot-isolated --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool screenshot-isolated --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool screenshot-isolated --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
@@ -66,6 +78,122 @@ For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 | `padding` | `any` | No | Framing multiplier around the object. 1.0 = tight fit, 1.5 = 50% extra space. Default: 1.2. |
 | `lights` | `string` | No | JSON array of light configurations. Each object defines type, color, intensity, rotation, position, range, spotAngle, shadows, etc. When null, a default white directional light at rotation (50,-30,0) is used. Example: [{"type":"Directional","color":"#FFF4E5","intensity":1.2,"rotation":[45,-45,0]}] |
 | `resolution` | `any` | No | Output image resolution in pixels (width = height). Default: 512. |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "gameObjectRef": {
+      "$ref": "#/$defs/AIGD.GameObjectRef"
+    },
+    "includeChildren": {
+      "$ref": "#/$defs/System.Boolean"
+    },
+    "isolated": {
+      "$ref": "#/$defs/System.Boolean"
+    },
+    "backgroundMode": {
+      "$ref": "#/$defs/com.IvanMurzak.Unity.MCP.Editor.API.Tool_Screenshot-BackgroundMode"
+    },
+    "backgroundColor": {
+      "type": "string"
+    },
+    "cameraView": {
+      "$ref": "#/$defs/com.IvanMurzak.Unity.MCP.Editor.API.Tool_Screenshot-CameraView"
+    },
+    "fieldOfView": {
+      "$ref": "#/$defs/System.Single"
+    },
+    "nearClipPlane": {
+      "$ref": "#/$defs/System.Single"
+    },
+    "farClipPlane": {
+      "$ref": "#/$defs/System.Single"
+    },
+    "padding": {
+      "$ref": "#/$defs/System.Single"
+    },
+    "lights": {
+      "type": "string"
+    },
+    "resolution": {
+      "$ref": "#/$defs/System.Int32"
+    }
+  },
+  "$defs": {
+    "System.Type": {
+      "type": "string"
+    },
+    "AIGD.GameObjectRef": {
+      "type": "object",
+      "properties": {
+        "instanceID": {
+          "type": "integer",
+          "description": "instanceID of the UnityEngine.Object. If it is '0' and 'path', 'name', 'assetPath' and 'assetGuid' is not provided, empty or null, then it will be used as 'null'. Priority: 1 (Recommended)"
+        },
+        "path": {
+          "type": "string",
+          "description": "Path of a GameObject in the hierarchy Sample 'character/hand/finger/particle'. Priority: 2."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of a GameObject in hierarchy. Priority: 3."
+        },
+        "assetType": {
+          "$ref": "#/$defs/System.Type",
+          "description": "Type of the asset."
+        },
+        "assetPath": {
+          "type": "string",
+          "description": "Path to the asset within the project. Starts with 'Assets/'"
+        },
+        "assetGuid": {
+          "type": "string",
+          "description": "Unique identifier for the asset."
+        }
+      },
+      "required": [
+        "instanceID"
+      ],
+      "description": "Find GameObject in opened Prefab or in the active Scene."
+    },
+    "System.Boolean": {
+      "type": "boolean"
+    },
+    "com.IvanMurzak.Unity.MCP.Editor.API.Tool_Screenshot-BackgroundMode": {
+      "type": "string",
+      "enum": [
+        "SolidColor",
+        "Skybox",
+        "Transparent"
+      ]
+    },
+    "com.IvanMurzak.Unity.MCP.Editor.API.Tool_Screenshot-CameraView": {
+      "type": "string",
+      "enum": [
+        "Front",
+        "Back",
+        "Left",
+        "Right",
+        "Top",
+        "Bottom",
+        "Composite"
+      ]
+    },
+    "System.Single": {
+      "type": "number"
+    },
+    "System.Int32": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "gameObjectRef"
+  ]
+}
+```
 
 ## Output
 

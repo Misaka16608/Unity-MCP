@@ -45,6 +45,7 @@ Verify installation:
 unity-mcp-cli --version
 ```
 
+
 > **Alternative**: Run any command without installing globally using `npx`:
 > ```bash
 > npx unity-mcp-cli --help

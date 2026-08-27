@@ -39,6 +39,10 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Does AssetDatabase.Refresh() at the end. " +
             "Provides compilation error details if the code has syntax errors. " +
             "Use '" + ScriptReadToolId + "' tool to read existing script files first.\n\n" +
+            "## Inputs\n\n" +
+            "- `filePath` — required `.cs` path.\n" +
+            "- `content` — C# source. MUST pass `ScriptUtils.IsValidCSharpSyntax`.\n" +
+            "- `requestId` — required for the processing/delivered-later contract.\n\n" +
             "## Behavior\n\n" +
             "Creates any missing parent directories, writes the file, then calls `AssetDatabase.Refresh` and schedules " +
             "a post-compilation notification so the final response is delivered after Unity finishes the recompile.")]

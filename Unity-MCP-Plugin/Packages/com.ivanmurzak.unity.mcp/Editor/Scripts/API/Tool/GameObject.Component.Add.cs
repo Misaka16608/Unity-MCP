@@ -35,6 +35,10 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
         [AiSkillBody("Add Component to GameObject in opened Prefab or in a Scene. " +
             "Use '" + GameObjectFindToolId + "' tool to find the target GameObject first. " +
             "Use '" + ComponentListToolId + "' tool to find the component type names to add.\n\n" +
+            "## Inputs\n\n" +
+            "- `componentNames` — list of component type names. Each entry may be a fully-qualified type name (preferred) " +
+            "or a bare class name (resolved via fallback to `AllComponentTypes`).\n" +
+            "- `gameObjectRef` — the target GameObject. Required.\n\n" +
             "## Behavior\n\n" +
             "Per-name errors (unknown type, type not assignable to `UnityEngine.Component`, add-failed/duplicate) are " +
             "accumulated in `response.Errors` / `response.Warnings` instead of throwing, so a single bad name does not " +

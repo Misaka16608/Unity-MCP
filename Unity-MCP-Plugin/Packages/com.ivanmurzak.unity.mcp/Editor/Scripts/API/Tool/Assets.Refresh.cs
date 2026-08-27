@@ -34,6 +34,10 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
         [AiSkillBody("Refreshes the AssetDatabase. " +
             "Use it if any file was added or updated in the project outside of Unity API. " +
             "Use it if need to force scripts recompilation when '.cs' file changed.\n\n" +
+            "## Inputs\n\n" +
+            "- `options` — `ImportAssetOptions` flag (default `ForceSynchronousImport`).\n" +
+            "- `requestId` — required for processing-mode responses; the tool returns `Processing` immediately and " +
+            "delivers a follow-up completion when compilation finishes.\n\n" +
             "## Behavior\n\n" +
             "Runs `AssetDatabase.Refresh(options)`. If `EditorApplication.isCompiling` is true after the refresh, " +
             "schedules a post-compilation notification and returns a `Processing` response. If compilation already " +

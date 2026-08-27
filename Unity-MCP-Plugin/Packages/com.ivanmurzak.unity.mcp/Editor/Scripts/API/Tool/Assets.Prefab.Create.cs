@@ -38,6 +38,11 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "If the source GameObject is already a prefab instance and 'connectGameObjectToPrefab' is true, a Prefab Variant is created automatically. " +
             "To create a Prefab Variant from an existing prefab asset, provide 'sourcePrefabAssetPath' instead of 'gameObjectRef'. " +
             "Use '" + Tool_GameObject.GameObjectFindToolId + "' tool to find the target GameObject first.\n\n" +
+            "## Inputs (mutually exclusive sources)\n\n" +
+            "- `prefabAssetPath` — required. Must start with `Assets/` and end with `.prefab`.\n" +
+            "- `gameObjectRef` — scene GameObject to convert (or to seed a Prefab Variant from when it is already a prefab instance).\n" +
+            "- `sourcePrefabAssetPath` — existing prefab asset to seed a Prefab Variant from. Cannot be combined with `gameObjectRef`.\n" +
+            "- `connectGameObjectToPrefab` (default `true`) — when sourcing from a scene GameObject, connect the scene object to the new prefab asset (becoming a prefab instance). Ignored for `sourcePrefabAssetPath` (always creates a variant).\n\n" +
             "## Behavior\n\n" +
             "Creates intermediate folders along `prefabAssetPath` if they don't already exist. Returns an `AssetObjectRef` " +
             "pointing at the new prefab asset.")]

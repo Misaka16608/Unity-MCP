@@ -35,6 +35,9 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Returns per-input success flags plus optional operation logs.")]
         [AiSkillBody("Enable or disable MCP tools by name. " +
             "Allows controlling which tools are available for the AI agent.\n\n" +
+            "## Inputs\n\n" +
+            "- `tools` — array of `ToolToggleInput { Name, Enabled }`. Non-empty.\n" +
+            "- `includeLogs` (default `false`) — when true, returns per-step operation logs alongside the success map.\n\n" +
             "## Behavior\n\n" +
             "Each entry is resolved against the tool manager's exact-name and case-insensitive lookups. " +
             "Already-correct state short-circuits as success without writing. The plugin's config is saved once at the " +

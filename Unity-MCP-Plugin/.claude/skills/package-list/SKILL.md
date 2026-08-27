@@ -7,6 +7,12 @@ description: List all UPM packages installed in the Unity project — name, vers
 
 List all packages installed in the Unity project (UPM packages). Returns information about each installed package including name, version, source, and description. Use this to check which packages are currently installed before adding or removing packages.
 
+## Inputs
+
+- `sourceFilter` (default `All`) — restrict by Unity `PackageSource`: `All`, `Registry`, `Embedded`, `Local`, `Git`, `BuiltIn`, `LocalTarball`.
+- `nameFilter` (optional) — case-insensitive substring filter over name / displayName / description. Results are prioritized: exact name → exact displayName → name substring → displayName substring → description substring.
+- `directDependenciesOnly` (default `false`) — when true, return only packages listed in `manifest.json` (no transitive dependencies).
+
 ## How to Call
 
 ```bash
@@ -17,11 +23,23 @@ unity-mcp-cli run-tool package-list --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool package-list --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool package-list --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool package-list --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
@@ -30,6 +48,34 @@ For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 | `sourceFilter` | `string` | No | Filter packages by source. |
 | `nameFilter` | `string` | No | Filter packages by name, display name, or description (case-insensitive). Results are prioritized: exact name match, exact display name match, name substring, display name substring, description substring. |
 | `directDependenciesOnly` | `boolean` | No | Include only direct dependencies (packages in manifest.json). If false, includes all resolved packages. Default: false |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sourceFilter": {
+      "type": "string",
+      "enum": [
+        "All",
+        "Registry",
+        "Embedded",
+        "Local",
+        "Git",
+        "BuiltIn",
+        "LocalTarball"
+      ]
+    },
+    "nameFilter": {
+      "type": "string"
+    },
+    "directDependenciesOnly": {
+      "type": "boolean"
+    }
+  }
+}
+```
 
 ## Output
 

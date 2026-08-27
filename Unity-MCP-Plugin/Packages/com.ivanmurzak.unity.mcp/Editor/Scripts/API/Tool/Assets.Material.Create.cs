@@ -34,6 +34,9 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
         [AiSkillBody("Create new material asset with default parameters. " +
             "Creates folders recursively if they do not exist. " +
             "Provide proper 'shaderName' - use '" + Tool_Assets_Shader.AssetsShaderListAllToolId + "' tool to find available shaders.\n\n" +
+            "## Inputs\n\n" +
+            "- `assetPath` — must start with `Assets/` and end with `.mat`.\n" +
+            "- `shaderName` — name resolvable via `UnityEngine.Shader.Find`.\n\n" +
             "## Behavior\n\n" +
             "Throws if the path is empty, malformed, or the shader cannot be resolved. " +
             "Creates a default Material from the resolved shader, saves it, refreshes the AssetDatabase, " +

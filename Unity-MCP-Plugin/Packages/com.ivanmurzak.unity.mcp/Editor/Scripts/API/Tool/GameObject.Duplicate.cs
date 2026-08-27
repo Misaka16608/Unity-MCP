@@ -35,6 +35,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "Use '" + GameObjectFindToolId + "' to locate the source GameObjects first.")]
         [AiSkillBody("Duplicate GameObjects in opened Prefab or in a Scene. " +
             "Use '" + GameObjectFindToolId + "' tool to find the target GameObjects first.\n\n" +
+            "## Inputs\n\n" +
+            "- `gameObjectRefs` — `GameObjectRefList` of source GameObjects.\n\n" +
             "## Behavior\n\n" +
             "Resolves every input ref on the main thread (throwing on any unresolved entry to keep the batch atomic). " +
             "Sets `Selection.entityIds`/`instanceIDs` to the sources and invokes " +

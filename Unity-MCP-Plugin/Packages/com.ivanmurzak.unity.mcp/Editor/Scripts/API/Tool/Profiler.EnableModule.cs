@@ -30,6 +30,9 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "This is local bookkeeping consumed by `profiler-get-status` and `profiler-list-modules`; Unity's " +
             "runtime API does not allow programmatic toggling of Profiler-window modules from a built-in " +
             "namespace, so this tool intentionally does not pretend to.\n\n" +
+            "## Inputs\n\n" +
+            "- `moduleName` (required) — one of the names returned by `profiler-list-modules`.\n" +
+            "- `enabled` (default `true`) — set to `false` to mark the module disabled.\n\n" +
             "## Errors\n\n" +
             "- Returns an `[Error]` string when `moduleName` is empty or unknown.")]
         [Description("Enables or disables a profiler module name in the wrapper's local bookkeeping set.")]

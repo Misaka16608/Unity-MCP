@@ -31,6 +31,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
         [AiSkillBody("Composes the outputs of `profiler-get-status`, `profiler-get-memory-stats`, " +
             "`profiler-get-rendering-stats`, `profiler-get-script-stats` and `profiler-capture-frame` into a single " +
             "JSON document and writes it to `filePath`. Creates any missing parent directories.\n\n" +
+            "## Inputs\n\n" +
+            "- `filePath` (required) — absolute or workspace-relative path to write to.\n\n" +
             "## Errors\n\n" +
             "- Returns `[Error]` when `filePath` is empty or the write fails (message includes the underlying exception text).\n\n" +
             "## Behavior\n\n" +

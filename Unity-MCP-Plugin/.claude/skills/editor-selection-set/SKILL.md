@@ -7,6 +7,10 @@ description: Set the current Selection in the Unity Editor to the provided objec
 
 Set the current Selection in the Unity Editor to the provided objects. Use 'editor-selection-get' tool to get the current selection first.
 
+## Inputs
+
+- `select` — array of `ObjectRef`. Every entry MUST resolve via `FindObject()`; otherwise the tool throws before touching `Selection.objects`.
+
 ## Behavior
 
 Assigns the resolved array to `Selection.objects`, then calls `UnityEditorInternal.InternalEditorUtility.RepaintAllViews()` so Hierarchy/Inspector reflect the change. Returns the post-change `SelectionData` snapshot.
@@ -19,17 +23,67 @@ unity-mcp-cli run-tool editor-selection-set --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool editor-selection-set --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool editor-selection-set --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool editor-selection-set --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `select` | `any` | Yes |  |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "select": {
+      "$ref": "#/$defs/AIGD.ObjectRef-1"
+    }
+  },
+  "$defs": {
+    "AIGD.ObjectRef": {
+      "type": "object",
+      "properties": {
+        "instanceID": {
+          "type": "integer",
+          "description": "instanceID of the UnityEngine.Object. If this is '0', then it will be used as 'null'."
+        }
+      },
+      "required": [
+        "instanceID"
+      ],
+      "description": "Reference to UnityEngine.Object instance. It could be GameObject, Component, Asset, etc. Anything extended from UnityEngine.Object."
+    },
+    "AIGD.ObjectRef-1": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/AIGD.ObjectRef",
+        "description": "Reference to UnityEngine.Object instance. It could be GameObject, Component, Asset, etc. Anything extended from UnityEngine.Object."
+      }
+    }
+  },
+  "required": [
+    "select"
+  ]
+}
+```
 
 ## Output
 

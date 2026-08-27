@@ -7,6 +7,12 @@ description: Write a `.cs` script file (create or overwrite) with the provided C
 
 Updates or creates script file with the provided C# code. Does AssetDatabase.Refresh() at the end. Provides compilation error details if the code has syntax errors. Use 'script-read' tool to read existing script files first.
 
+## Inputs
+
+- `filePath` — required `.cs` path.
+- `content` — C# source. MUST pass `ScriptUtils.IsValidCSharpSyntax`.
+- `requestId` — required for the processing/delivered-later contract.
+
 ## Behavior
 
 Creates any missing parent directories, writes the file, then calls `AssetDatabase.Refresh` and schedules a post-compilation notification so the final response is delivered after Unity finishes the recompile.
@@ -20,11 +26,23 @@ unity-mcp-cli run-tool script-update-or-create --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool script-update-or-create --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool script-update-or-create --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool script-update-or-create --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
@@ -32,6 +50,26 @@ For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 |------|------|----------|-------------|
 | `filePath` | `string` | Yes | The path to the file. Sample: "Assets/Scripts/MyScript.cs". |
 | `content` | `string` | Yes | C# code - content of the file. |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "filePath": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "filePath",
+    "content"
+  ]
+}
+```
 
 ## Output
 

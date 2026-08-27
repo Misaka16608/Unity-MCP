@@ -152,6 +152,9 @@ The plugin ships with 70+ built-in tools across four categories. Each tool bring
 - `screenshot-game-view` - Captures a screenshot from the Unity Editor Game View
 - `screenshot-isolated` - Render a GameObject in isolation from a chosen angle (optional composite 2x2 view)
 - `screenshot-scene-view` - Captures a screenshot from the Unity Editor Scene View
+- `runtime-input-find-clickable` - Find active UGUI/EventSystem click targets and return screen bounds plus a recommended point
+- `runtime-input-hit-test` - Dry-run a UGUI point or rectangle hit test and report raycasts and occluders
+- `runtime-input-click` - Dispatch an in-process UGUI pointer click at a screen coordinate (Play Mode required)
 
 </details>
 

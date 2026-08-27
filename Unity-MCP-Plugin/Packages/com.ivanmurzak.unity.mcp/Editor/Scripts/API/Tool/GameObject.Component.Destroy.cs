@@ -34,6 +34,9 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "' to identify the components first.")]
         [AiSkillBody("Destroy one or many components from target GameObject. Can't destroy missed components. " +
             "Use '" + GameObjectFindToolId + "' tool to find the target GameObject and '" + GameObjectComponentGetToolId + "' to get component details first.\n\n" +
+            "## Inputs\n\n" +
+            "- `gameObjectRef` — the host GameObject.\n" +
+            "- `destroyComponentRefs` — `ComponentRefList` of components to destroy (matched against the GameObject's components).\n\n" +
             "## Behavior\n\n" +
             "Iterates `go.GetComponents<Component>()`, skipping null entries (missing scripts). For each non-null component " +
             "that matches one of `destroyComponentRefs`, the tool snapshots a `ComponentRef`, calls `Object.DestroyImmediate`, " +

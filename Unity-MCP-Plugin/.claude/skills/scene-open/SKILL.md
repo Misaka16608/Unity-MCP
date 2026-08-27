@@ -7,6 +7,10 @@ description: Open a Unity scene asset in Single or Additive mode. Returns the po
 
 Open scene from the project asset file. Use 'assets-find' tool to find the scene asset first.
 
+## Inputs
+
+- `sceneRef` — `AssetObjectRef` pointing at a `SceneAsset`. Throws if the asset cannot be resolved or is not a `SceneAsset`.
+- `loadSceneMode` (default `Single`):
   - `Single` — closes the currently opened scenes and opens this one.
   - `Additive` — keeps the currently opened scenes and opens this one alongside them.
 
@@ -19,11 +23,23 @@ unity-mcp-cli run-tool scene-open --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool scene-open --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool scene-open --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool scene-open --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
@@ -31,6 +47,60 @@ For CLI installation or connectivity issues, see the /unity-initial-setup skill.
 |------|------|----------|-------------|
 | `sceneRef` | `any` | Yes | Reference to UnityEngine.Object asset instance. It could be Material, ScriptableObject, Prefab, and any other Asset. Anything located in the Assets and Packages folders. |
 | `loadSceneMode` | `string` | No | Open scene mode. Single: closes the current scenes and opens a new one. Additive: keeps the current scene and opens additional one. |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sceneRef": {
+      "$ref": "#/$defs/AIGD.AssetObjectRef"
+    },
+    "loadSceneMode": {
+      "type": "string",
+      "enum": [
+        "Single",
+        "Additive",
+        "AdditiveWithoutLoading"
+      ]
+    }
+  },
+  "$defs": {
+    "System.Type": {
+      "type": "string"
+    },
+    "AIGD.AssetObjectRef": {
+      "type": "object",
+      "properties": {
+        "instanceID": {
+          "type": "integer",
+          "description": "instanceID of the UnityEngine.Object. If this is '0' and 'assetPath' and 'assetGuid' is not provided, empty or null, then it will be used as 'null'."
+        },
+        "assetType": {
+          "$ref": "#/$defs/System.Type",
+          "description": "Type of the asset."
+        },
+        "assetPath": {
+          "type": "string",
+          "description": "Path to the asset within the project. Starts with 'Assets/'"
+        },
+        "assetGuid": {
+          "type": "string",
+          "description": "Unique identifier for the asset."
+        }
+      },
+      "required": [
+        "instanceID"
+      ],
+      "description": "Reference to UnityEngine.Object asset instance. It could be Material, ScriptableObject, Prefab, and any other Asset. Anything located in the Assets and Packages folders."
+    }
+  },
+  "required": [
+    "sceneRef"
+  ]
+}
+```
 
 ## Output
 

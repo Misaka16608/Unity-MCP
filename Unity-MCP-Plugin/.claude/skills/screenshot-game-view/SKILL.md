@@ -19,17 +19,42 @@ unity-mcp-cli run-tool screenshot-game-view --input '{
 }'
 ```
 
-> For complex input, save JSON to a file and use `unity-mcp-cli run-tool screenshot-game-view --input-file args.json`.
+> For complex input (multi-line strings, code), save the JSON to a file and use:
+> ```bash
+> unity-mcp-cli run-tool screenshot-game-view --input-file args.json
+> ```
+>
+> Or pipe via stdin (recommended):
+> ```bash
+> unity-mcp-cli run-tool screenshot-game-view --input-file - <<'EOF'
+> {"param": "value"}
+> EOF
+> ```
+
 
 ### Troubleshooting
 
-For CLI installation or connectivity issues, see the /unity-initial-setup skill.
+If `unity-mcp-cli` is not found, either install it globally (`npm install -g unity-mcp-cli`) or use `npx unity-mcp-cli` instead.
+Read the /unity-initial-setup skill for detailed installation instructions.
 
 ## Input
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `nothing` | `string` | No |  |
+
+### Input JSON Schema
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "nothing": {
+      "type": "string"
+    }
+  }
+}
+```
 
 ## Output
 
