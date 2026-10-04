@@ -4,3 +4,6 @@
 /tests/chain-fixtures/** text eol=lf
 /.github/scripts/chain_fixture.py text eol=lf
 /.github/scripts/chain_feed.py text eol=lf
+
+# Unified diffs require a single-space marker for blank context lines.
+/commands/request-safety/patches/*.patch text eol=lf whitespace=-blank-at-eol

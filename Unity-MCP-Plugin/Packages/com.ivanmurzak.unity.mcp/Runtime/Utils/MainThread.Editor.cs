@@ -11,6 +11,7 @@
 #nullable enable
 using System;
 using System.Threading.Tasks;
+using com.IvanMurzak.McpPlugin.Common.Execution;
 using com.IvanMurzak.ReflectorNet.Utils;
 using UnityEditor;
 
@@ -26,17 +27,17 @@ namespace com.IvanMurzak.Unity.MCP.Runtime.Utils
         public override bool IsMainThread => MainThreadDispatcher.IsMainThread;
 
         public override Task RunAsync(Task task)
-            => MainThreadDispatcher.IsMainThread ? task : Dispatch(() => { task.Wait(); return true; });
+            => CanRunInline() ? task : Dispatch(() => { task.Wait(); return true; });
 
         public override Task<T> RunAsync<T>(Task<T> task)
-            => MainThreadDispatcher.IsMainThread ? task : Dispatch(() => task.Result);
+            => CanRunInline() ? task : Dispatch(() => task.Result);
 
         public override Task<T> RunAsync<T>(Func<T> func)
-            => MainThreadDispatcher.IsMainThread ? Task.FromResult(func()) : Dispatch(func);
+            => CanRunInline() ? Task.FromResult(func()) : Dispatch(func);
 
         public override Task RunAsync(Action action)
         {
-            if (MainThreadDispatcher.IsMainThread)
+            if (CanRunInline())
             {
                 action();
                 return Task.CompletedTask;
@@ -44,19 +45,24 @@ namespace com.IvanMurzak.Unity.MCP.Runtime.Utils
             return Dispatch(() => { action(); return true; });
         }
 
+        static bool CanRunInline()
+        {
+            ToolExecutionContext.Current?.ThrowIfExpired();
+            if (!MainThreadDispatcher.IsMainThread) return false;
+            ToolExecutionContext.Current?.MarkMainThreadStarted();
+            return true;
+        }
+
         static Task<T> Dispatch<T>(Func<T> body)
         {
-            var tcs = new TaskCompletionSource<T>();
-
+            var execution = new QueuedExecution<T>(body, ToolExecutionContext.Current);
             void Execute()
             {
-                try { tcs.SetResult(body()); }
-                catch (Exception ex) { tcs.SetException(ex); }
-                finally { EditorApplication.update -= Execute; }
+                EditorApplication.update -= Execute;
+                execution.Execute();
             }
-
             EditorApplication.update += Execute;
-            return tcs.Task;
+            return execution.Task;
         }
     }
 }

@@ -1,0 +1,48 @@
+diff --git a/com.IvanMurzak.GameDev.MCP.Server.csproj b/com.IvanMurzak.GameDev.MCP.Server.csproj
+--- a/com.IvanMurzak.GameDev.MCP.Server.csproj
++++ b/com.IvanMurzak.GameDev.MCP.Server.csproj
+@@ -13,7 +13,7 @@
+     <PackAsTool>true</PackAsTool>
+     <ToolCommandName>gamedev-mcp-server</ToolCommandName>
+     <PackageId>com.IvanMurzak.GameDev.MCP.Server</PackageId>
+-    <Version>9.2.9</Version>
++    <Version>9.2.9-request-safety.1</Version>
+     <Authors>Ivan Murzak</Authors>
+     <Company>Ivan Murzak</Company>
+     <Copyright>Copyright © 2026 Ivan Murzak</Copyright>
+@@ -57,14 +57,14 @@
+   -->
+   <ItemGroup Condition="'$(UseLocalMcpPlugin)' != 'true'">
+     <PackageReference Include="com.IvanMurzak.ReflectorNet" Version="5.4.1" />
+-    <PackageReference Include="com.IvanMurzak.McpPlugin.Server" Version="8.6.0" />
++    <ProjectReference Include="../MCP-Plugin-dotnet/McpPlugin.Server/McpPlugin.Server.csproj" />
+     <!--
+       Base McpPlugin package: the McpPlugin.Server package does NOT depend on it, but it hosts the
+       shared AI-agent configurator registry (AiAgentConfiguratorRegistry) + ProjectIdentity /
+       ProjectMarker primitives the `configure` subcommand consumes from the terminal. Pinned in
+       lockstep with McpPlugin.Server.
+     -->
+-    <PackageReference Include="com.IvanMurzak.McpPlugin" Version="8.6.0" />
++    <ProjectReference Include="../MCP-Plugin-dotnet/McpPlugin/McpPlugin.csproj" />
+   </ItemGroup>
+ 
+   <ItemGroup Condition="'$(UseLocalMcpPlugin)' == 'true'">
+diff --git a/server.json b/server.json
+--- a/server.json
++++ b/server.json
+@@ -7,13 +7,13 @@
+     "url": "https://github.com/IvanMurzak/GameDev-MCP-Server",
+     "source": "github"
+   },
+-  "version": "9.2.9",
++  "version": "9.2.9-request-safety.1",
+   "packages": [
+     {
+       "registry_type": "oci",
+       "registry_base_url": "https://docker.io",
+       "identifier": "aigamedeveloper/mcp-server",
+-      "version": "9.2.9",
++      "version": "9.2.9-request-safety.1",
+       "transport": {
+         "type": "stdio"
+       },

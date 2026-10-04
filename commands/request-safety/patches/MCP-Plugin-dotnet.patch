@@ -1,0 +1,1413 @@
+diff --git a/McpPlugin.Common/McpPlugin.Common.csproj b/McpPlugin.Common/McpPlugin.Common.csproj
+--- a/McpPlugin.Common/McpPlugin.Common.csproj
++++ b/McpPlugin.Common/McpPlugin.Common.csproj
+@@ -11,7 +11,7 @@
+     <!-- NuGet Package Information -->
+     <IsPackable>true</IsPackable>
+     <PackageId>com.IvanMurzak.McpPlugin.Common</PackageId>
+-    <Version>8.6.0</Version>
++    <Version>8.6.0-request-safety.1</Version>
+     <Authors>Ivan Murzak</Authors>
+     <Company>Ivan Murzak</Company>
+     <Copyright>Copyright © Ivan Murzak 2025</Copyright>
+diff --git a/McpPlugin.Common/src/Utils/Consts.cs b/McpPlugin.Common/src/Utils/Consts.cs
+--- a/McpPlugin.Common/src/Utils/Consts.cs
++++ b/McpPlugin.Common/src/Utils/Consts.cs
+@@ -11,8 +11,8 @@
+ {
+     public static partial class Consts
+     {
+-        public const string ApiVersion = "2.0.0";
+-        public const string PluginVersion = "8.6.0";
++        public const string ApiVersion = "2.0.0-request-safety.1";
++        public const string PluginVersion = "8.6.0-request-safety.1";
+ 
+         public static class Guid
+         {
+diff --git a/McpPlugin.Common/src/Data/Request/Tool/Call/RequestCallTool.cs b/McpPlugin.Common/src/Data/Request/Tool/Call/RequestCallTool.cs
+--- a/McpPlugin.Common/src/Data/Request/Tool/Call/RequestCallTool.cs
++++ b/McpPlugin.Common/src/Data/Request/Tool/Call/RequestCallTool.cs
+@@ -17,6 +17,9 @@
+     {
+         public string RequestID { get; set; } = string.Empty;
+         public string Name { get; set; } = string.Empty;
++        public string ExecutionScope { get; set; } = string.Empty;
++        public string IdentityScope { get; set; } = string.Empty;
++        public DateTimeOffset? DeadlineUtc { get; set; }
+         public IReadOnlyDictionary<string, JsonElement> Arguments { get; set; } = new Dictionary<string, JsonElement>();
+ 
+         public RequestCallTool() { }
+diff --git a/McpPlugin.Common/src/Execution/ExecutionRegistry.cs b/McpPlugin.Common/src/Execution/ExecutionRegistry.cs
+new file mode 100644
+--- /dev/null
++++ b/McpPlugin.Common/src/Execution/ExecutionRegistry.cs
+@@ -0,0 +1,97 @@
++/*
++┌────────────────────────────────────────────────────────────────────────┐
++│  Author: Ivan Murzak (https://github.com/IvanMurzak)                   │
++│  Repository: GitHub (https://github.com/IvanMurzak/MCP-Plugin-dotnet)  │
++│  Copyright (c) 2025 Ivan Murzak                                        │
++│  Licensed under the Apache License, Version 2.0.                       │
++│  See the LICENSE file in the project root for more information.        │
++└────────────────────────────────────────────────────────────────────────┘
++*/
++#nullable enable
++using System;
++using System.Collections.Generic;
++using System.Threading;
++using System.Threading.Tasks;
++
++namespace com.IvanMurzak.McpPlugin.Common.Execution
++{
++    // No timed eviction: admitting an old ID again would silently repeat its side effects.
++    // At capacity fail closed; callers must start a new session/process deliberately.
++    public sealed class ExecutionRegistry<T> : IDisposable
++    {
++        private readonly object _gate = new();
++        private readonly Dictionary<string, Entry> _entries = new(StringComparer.Ordinal);
++        private readonly int _capacity;
++        private bool _disposed;
++        public ExecutionRegistry(int capacity = 10000) { _capacity = capacity; }
++        private sealed class Entry
++        {
++            public string? Fingerprint;
++            public readonly CancellationTokenSource Cancellation = new();
++            public readonly TaskCompletionSource<T> Completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
++            public bool Started;
++        }
++        public Task<T> Run(string scope, string id, string fingerprint, Func<CancellationToken, Task<T>> execute)
++        {
++            if (string.IsNullOrWhiteSpace(scope) || string.IsNullOrWhiteSpace(id))
++                throw new ArgumentException("Execution scope and request ID are required.");
++            Entry entry;
++            lock (_gate)
++            {
++                if (_disposed) throw new ObjectDisposedException(nameof(ExecutionRegistry<T>));
++                var key = Key(scope, id);
++                if (!_entries.TryGetValue(key, out entry!))
++                {
++                    if (_entries.Count >= _capacity) throw new InvalidOperationException("Execution ledger is full; refusing to discard deduplication history.");
++                    _entries.Add(key, entry = new Entry());
++                }
++                if (entry.Fingerprint != null && entry.Fingerprint != fingerprint)
++                    throw new InvalidOperationException("Request ID already belongs to a different tool or arguments.");
++                entry.Fingerprint = fingerprint;
++                if (entry.Started) return entry.Completion.Task;
++                entry.Started = true;
++            }
++            // Do not run a synchronous tool on the SignalR receive loop: cancellation must
++            // remain receivable while the engine waits for its main thread.
++            _ = Task.Run(async () =>
++            {
++                try
++                {
++                    entry.Cancellation.Token.ThrowIfCancellationRequested();
++                    entry.Completion.TrySetResult(await execute(entry.Cancellation.Token).ConfigureAwait(false));
++                }
++                catch (OperationCanceledException) { entry.Completion.TrySetCanceled(); }
++                catch (Exception ex) { entry.Completion.TrySetException(ex); }
++            });
++            return entry.Completion.Task;
++        }
++        public void Cancel(string scope, string id)
++        {
++            Entry entry;
++            lock (_gate)
++            {
++                if (_disposed) return;
++                var key = Key(scope, id);
++                if (!_entries.TryGetValue(key, out entry!))
++                {
++                    if (_entries.Count >= _capacity) throw new InvalidOperationException("Execution ledger is full.");
++                    _entries.Add(key, entry = new Entry()); // tombstone for cancel-before-delivery
++                }
++            }
++            entry.Cancellation.Cancel();
++        }
++        private static string Key(string scope, string id) => scope.Length + ":" + scope + id;
++        public void Dispose()
++        {
++            Entry[] entries;
++            lock (_gate)
++            {
++                if (_disposed) return;
++                _disposed = true;
++                entries = new List<Entry>(_entries.Values).ToArray();
++            }
++            foreach (var entry in entries) entry.Cancellation.Cancel();
++            // Tokens can still be used by non-interruptible work; do not dispose them early.
++        }
++    }
++}
+diff --git a/McpPlugin.Common/src/Execution/ToolExecutionContext.cs b/McpPlugin.Common/src/Execution/ToolExecutionContext.cs
+new file mode 100644
+--- /dev/null
++++ b/McpPlugin.Common/src/Execution/ToolExecutionContext.cs
+@@ -0,0 +1,40 @@
++/*
++┌────────────────────────────────────────────────────────────────────────┐
++│  Author: Ivan Murzak (https://github.com/IvanMurzak)                   │
++│  Repository: GitHub (https://github.com/IvanMurzak/MCP-Plugin-dotnet)  │
++│  Copyright (c) 2025 Ivan Murzak                                        │
++│  Licensed under the Apache License, Version 2.0.                       │
++│  See the LICENSE file in the project root for more information.        │
++└────────────────────────────────────────────────────────────────────────┘
++*/
++#nullable enable
++using System;
++using System.Threading;
++
++namespace com.IvanMurzak.McpPlugin.Common.Execution
++{
++    // Flows through tool invocation and is captured explicitly by engine dispatchers.
++    public sealed class ToolExecutionContext
++    {
++        private static readonly AsyncLocal<ToolExecutionContext?> CurrentSlot = new();
++        public static ToolExecutionContext? Current { get => CurrentSlot.Value; set => CurrentSlot.Value = value; }
++        public string IdentityScope { get; }
++        public CancellationToken CancellationToken { get; }
++        public DateTimeOffset? DeadlineUtc { get; }
++        public Action? OnMainThreadStarted { get; }
++        public void MarkMainThreadStarted() => OnMainThreadStarted?.Invoke();
++        public ToolExecutionContext(string identityScope, CancellationToken cancellationToken, DateTimeOffset? deadlineUtc, Action? onMainThreadStarted = null)
++        {
++            IdentityScope = identityScope;
++            CancellationToken = cancellationToken;
++            DeadlineUtc = deadlineUtc;
++            OnMainThreadStarted = onMainThreadStarted;
++        }
++        public void ThrowIfExpired()
++        {
++            CancellationToken.ThrowIfCancellationRequested();
++            if (DeadlineUtc.HasValue && DateTimeOffset.UtcNow >= DeadlineUtc.Value)
++                throw new OperationCanceledException("Request expired before engine execution.");
++        }
++    }
++}
+diff --git a/McpPlugin.Common/src/Hub/Client/ICancellableToolHub.cs b/McpPlugin.Common/src/Hub/Client/ICancellableToolHub.cs
+new file mode 100644
+--- /dev/null
++++ b/McpPlugin.Common/src/Hub/Client/ICancellableToolHub.cs
+@@ -0,0 +1,29 @@
++/*
++┌────────────────────────────────────────────────────────────────────────┐
++│  Author: Ivan Murzak (https://github.com/IvanMurzak)                   │
++│  Repository: GitHub (https://github.com/IvanMurzak/MCP-Plugin-dotnet)  │
++│  Copyright (c) 2025 Ivan Murzak                                        │
++│  Licensed under the Apache License, Version 2.0.                       │
++│  See the LICENSE file in the project root for more information.        │
++└────────────────────────────────────────────────────────────────────────┘
++*/
++#nullable enable
++using System.Threading;
++using System.Threading.Tasks;
++using com.IvanMurzak.McpPlugin.Common.Model;
++
++namespace com.IvanMurzak.McpPlugin.Common.Hub.Client
++{
++    public interface ICancellableToolHub : IClientToolHub
++    {
++        Task<ResponseData<ResponseCallTool>> RunCallTool(RequestCallTool request, CancellationToken cancellationToken);
++    }
++    public static class CancellableToolHubExtensions
++    {
++        public static Task<ResponseData<ResponseCallTool>> RunCallTool(this IClientToolHub hub, RequestCallTool request, CancellationToken token)
++        {
++            token.ThrowIfCancellationRequested();
++            return hub is ICancellableToolHub cancellable ? cancellable.RunCallTool(request, token) : hub.RunCallTool(request);
++        }
++    }
++}
+diff --git a/McpPlugin/McpPlugin.csproj b/McpPlugin/McpPlugin.csproj
+--- a/McpPlugin/McpPlugin.csproj
++++ b/McpPlugin/McpPlugin.csproj
+@@ -16,7 +16,7 @@
+     <!-- NuGet Package Information -->
+     <IsPackable>true</IsPackable>
+     <PackageId>com.IvanMurzak.McpPlugin</PackageId>
+-    <Version>8.6.0</Version>
++    <Version>8.6.0-request-safety.1</Version>
+     <Authors>Ivan Murzak</Authors>
+     <Company>Ivan Murzak</Company>
+     <Copyright>Copyright © Ivan Murzak 2025</Copyright>
+diff --git a/McpPlugin/src/Mcp/McpToolManager.cs b/McpPlugin/src/Mcp/McpToolManager.cs
+--- a/McpPlugin/src/Mcp/McpToolManager.cs
++++ b/McpPlugin/src/Mcp/McpToolManager.cs
+@@ -26,7 +26,7 @@
+ 
+ namespace com.IvanMurzak.McpPlugin
+ {
+-    public class McpToolManager : IToolManager
++    public class McpToolManager : IToolManager, com.IvanMurzak.McpPlugin.Common.Hub.Client.ICancellableToolHub
+     {
+         protected readonly ILogger _logger;
+         protected readonly Reflector _reflector;
+@@ -34,6 +34,8 @@
+         private ulong toolCallsCount = 0;
+ 
+         readonly ToolRunnerCollection _tools;
++        readonly ToolRequestExecutor _executions = new();
++        public void CancelCallTool(RequestCallTool data) => _executions.Cancel(data);
+         readonly Subject<Unit> _onToolsUpdated = new();
+ 
+         public Reflector Reflector => _reflector;
+@@ -131,7 +133,10 @@
+         }
+ 
+         public Task<ResponseData<ResponseCallTool>> RunCallTool(RequestCallTool data) => RunCallTool(data, default);
+-        public async Task<ResponseData<ResponseCallTool>> RunCallTool(RequestCallTool data, CancellationToken cancellationToken = default)
++        public Task<ResponseData<ResponseCallTool>> RunCallTool(RequestCallTool data, CancellationToken cancellationToken = default)
++            => _executions.Run(data, cancellationToken, ExecuteCallTool);
++
++        private async Task<ResponseData<ResponseCallTool>> ExecuteCallTool(RequestCallTool data, CancellationToken cancellationToken)
+         {
+             Interlocked.Increment(ref Unsafe.As<ulong, long>(ref toolCallsCount));
+             if (data == null)
+@@ -243,6 +248,7 @@
+ 
+         public void Dispose()
+         {
++            _executions.Dispose();
+             _disposables.Dispose();
+             _tools.Clear();
+         }
+diff --git a/McpPlugin/src/Mcp/ToolRequestExecutor.cs b/McpPlugin/src/Mcp/ToolRequestExecutor.cs
+new file mode 100644
+--- /dev/null
++++ b/McpPlugin/src/Mcp/ToolRequestExecutor.cs
+@@ -0,0 +1,58 @@
++/*
++┌────────────────────────────────────────────────────────────────────────┐
++│  Author: Ivan Murzak (https://github.com/IvanMurzak)                   │
++│  Repository: GitHub (https://github.com/IvanMurzak/MCP-Plugin-dotnet)  │
++│  Copyright (c) 2025 Ivan Murzak                                        │
++│  Licensed under the Apache License, Version 2.0.                       │
++│  See the LICENSE file in the project root for more information.        │
++└────────────────────────────────────────────────────────────────────────┘
++*/
++#nullable enable
++using System;
++using System.Linq;
++using System.Threading;
++using System.Threading.Tasks;
++using com.IvanMurzak.McpPlugin.Common.Model;
++
++namespace com.IvanMurzak.McpPlugin
++{
++    internal sealed class ToolRequestExecutor : IDisposable
++    {
++        readonly com.IvanMurzak.McpPlugin.Common.Execution.ExecutionRegistry<ResponseData<ResponseCallTool>> _executions = new();
++        readonly string _localScope = Guid.NewGuid().ToString("N");
++        public void Cancel(RequestCallTool data) => _executions.Cancel(
++            string.IsNullOrEmpty(data.ExecutionScope) ? _localScope : data.ExecutionScope, data.RequestID);
++        public async Task<ResponseData<ResponseCallTool>> Run(RequestCallTool data, CancellationToken cancellationToken, Func<RequestCallTool, CancellationToken, Task<ResponseData<ResponseCallTool>>> execute)
++        {
++            if (data == null) return ResponseData<ResponseCallTool>.Error(Common.Consts.Guid.Zero, "Tool data is null.", ResponseErrorKind.BadRequest);
++            var scope = string.IsNullOrEmpty(data.ExecutionScope) ? _localScope : data.ExecutionScope;
++            var fingerprint = System.Text.Json.JsonSerializer.Serialize(new { data.Name, Arguments = data.Arguments?.OrderBy(x => x.Key).ToArray(), data.IdentityScope });
++            using var registration = cancellationToken.Register(() => _executions.Cancel(scope, data.RequestID));
++            try
++            {
++                return await _executions.Run(scope, data.RequestID, fingerprint, async token =>
++                {
++                    var previous = com.IvanMurzak.McpPlugin.Common.Execution.ToolExecutionContext.Current;
++                    try
++                    {
++                        com.IvanMurzak.McpPlugin.Common.Execution.ToolExecutionContext.Current = new(
++                            data.IdentityScope, token, data.DeadlineUtc, previous?.OnMainThreadStarted);
++                        com.IvanMurzak.McpPlugin.Common.Execution.ToolExecutionContext.Current.ThrowIfExpired();
++                        return await execute(data, token);
++                    }
++                    finally { com.IvanMurzak.McpPlugin.Common.Execution.ToolExecutionContext.Current = previous; }
++                });
++            }
++            catch (OperationCanceledException)
++            {
++                return ResponseData<ResponseCallTool>.Error(data.RequestID, "Request canceled or expired before execution; started work may still have side effects.", ResponseErrorKind.Timeout);
++            }
++            catch (Exception ex)
++            {
++                return ResponseData<ResponseCallTool>.Error(data.RequestID, ex.Message, ResponseErrorKind.Conflict);
++            }
++        }
++
++        public void Dispose() => _executions.Dispose();
++    }
++}
+diff --git a/McpPlugin/src/Mcp/McpSystemToolManager.cs b/McpPlugin/src/Mcp/McpSystemToolManager.cs
+--- a/McpPlugin/src/Mcp/McpSystemToolManager.cs
++++ b/McpPlugin/src/Mcp/McpSystemToolManager.cs
+@@ -32,10 +32,13 @@
+     /// System tools are discovered via <see cref="AiToolAttribute"/> with
+     /// <see cref="AiToolAttribute.ToolType"/> set to <see cref="McpToolType.System"/>.
+     /// </summary>
+-    public class McpSystemToolManager : ISystemToolManager
++    public class McpSystemToolManager : ISystemToolManager, IDisposable
+     {
+         readonly ILogger _logger;
+         readonly SystemToolRunnerCollection _tools;
++        readonly ToolRequestExecutor _executions = new();
++        public void CancelCallTool(RequestCallTool request) => _executions.Cancel(request);
++        public void Dispose() => _executions.Dispose();
+ 
+         public McpSystemToolManager(ILogger<McpSystemToolManager> logger, SystemToolRunnerCollection tools)
+         {
+@@ -62,7 +65,10 @@
+             return _tools.ContainsKey(name);
+         }
+ 
+-        public async Task<ResponseData<ResponseCallTool>> RunSystemTool(RequestCallTool request, CancellationToken cancellationToken = default)
++        public Task<ResponseData<ResponseCallTool>> RunSystemTool(RequestCallTool request, CancellationToken cancellationToken = default)
++            => _executions.Run(request, cancellationToken, ExecuteSystemTool);
++
++        private async Task<ResponseData<ResponseCallTool>> ExecuteSystemTool(RequestCallTool request, CancellationToken cancellationToken)
+         {
+             if (request == null)
+                 return ResponseData<ResponseCallTool>.Error(string.Empty, "Request is null.", ResponseErrorKind.BadRequest);
+diff --git a/McpPlugin/src/Mcp/Tool/RunTool.cs b/McpPlugin/src/Mcp/Tool/RunTool.cs
+--- a/McpPlugin/src/Mcp/Tool/RunTool.cs
++++ b/McpPlugin/src/Mcp/Tool/RunTool.cs
+@@ -72,7 +72,8 @@
+ 
+         public MethodInfo Method => _methodInfo;
+ 
+-        protected string? RequestID { get; set; }
++        private readonly AsyncLocal<string?> _requestId = new();
++        protected string? RequestID { get => _requestId.Value; set => _requestId.Value = value; }
+ 
+         /// <summary>
+         /// Cached lookup dictionary for case-insensitive parameter name matching.
+diff --git a/McpPlugin/src/McpPlugin/Network/Client/McpManagerClientHub.cs b/McpPlugin/src/McpPlugin/Network/Client/McpManagerClientHub.cs
+--- a/McpPlugin/src/McpPlugin/Network/Client/McpManagerClientHub.cs
++++ b/McpPlugin/src/McpPlugin/Network/Client/McpManagerClientHub.cs
+@@ -129,6 +129,13 @@
+             })
+             .AddTo(_serverEventsDisposables);
+ 
++            // Cancellation is an explicit out-of-band message, not SignalR invocation cancellation.
++            hubConnection.On<RequestCallTool>("CancelCallTool", data =>
++            {
++                if (_mcpManager.ToolHub is McpToolManager manager) manager.CancelCallTool(data);
++                if (_mcpManager.SystemToolHub is McpSystemToolManager systemManager) systemManager.CancelCallTool(data);
++            }).AddTo(_serverEventsDisposables);
++
+             // Tool events -------------------------------------------------------------
+ 
+             if (_mcpManager.ToolHub != null)
+diff --git a/McpPlugin.Server/McpPlugin.Server.csproj b/McpPlugin.Server/McpPlugin.Server.csproj
+--- a/McpPlugin.Server/McpPlugin.Server.csproj
++++ b/McpPlugin.Server/McpPlugin.Server.csproj
+@@ -11,7 +11,7 @@
+     <!-- NuGet Package Information -->
+     <IsPackable>true</IsPackable>
+     <PackageId>com.IvanMurzak.McpPlugin.Server</PackageId>
+-    <Version>8.6.0</Version>
++    <Version>8.6.0-request-safety.1</Version>
+     <Authors>Ivan Murzak</Authors>
+     <Company>Ivan Murzak</Company>
+     <Copyright>Copyright © Ivan Murzak 2025</Copyright>
+diff --git a/McpPlugin.Server/src/Client/ClientUtils.cs b/McpPlugin.Server/src/Client/ClientUtils.cs
+--- a/McpPlugin.Server/src/Client/ClientUtils.cs
++++ b/McpPlugin.Server/src/Client/ClientUtils.cs
+@@ -27,7 +27,6 @@
+     public static class ClientUtils
+     {
+         const int maxRetries = 10; // Maximum number of retries
+-        const int retryDelayMs = 1000; // Delay between retries in milliseconds
+ 
+         // Thread-safe collection to store connected clients, grouped by hub type
+         static readonly ConcurrentDictionary<Type, ConcurrentDictionary<string, bool>> ConnectedClients = new();
+@@ -153,7 +152,8 @@
+             IDataArguments dataArguments,
+             IMcpConnectionStrategy strategy,
+             string? token = null,
+-            CancellationToken cancellationToken = default)
++            CancellationToken cancellationToken = default,
++            Action<string>? onDispatch = null)
+             where TRequest : IRequestID
+             where THub : Hub
+         {
+@@ -196,35 +196,49 @@
+                         var allConnections = string.Join(", ", AllConnections);
+                         logger.LogTrace("Invoke '{0}': ConnectionId ='{1}'. RequestData:\n{2}\n{3}", methodName, connectionId, request, allConnections);
+                     }
+-                    var invokeTask = client.InvokeAsync<ResponseData<TResponse>>(methodName, request, cancellationToken);
+-                    var completed = await invokeTask.WaitWithTimeout(dataArguments.PluginTimeoutMs, cancellationToken);
+-                    if (completed)
+-                    {
+-                        try
++                    cancellationToken.ThrowIfCancellationRequested();
++                    onDispatch?.Invoke(connectionId!);
++                    if (request is RequestCallTool toolRequest)
++                        toolRequest.DeadlineUtc = DateTimeOffset.UtcNow.AddMilliseconds(dataArguments.PluginTimeoutMs);
++                    using var invokeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
++                    Task<ResponseData<TResponse>>? invokeTask = null;
++                    try
++                    {
++                        invokeTask = client.InvokeAsync<ResponseData<TResponse>>(methodName, request, invokeCts.Token);
++                        var completed = await invokeTask.WaitWithTimeout(dataArguments.PluginTimeoutMs, cancellationToken);
++                        if (completed)
+                         {
+                             var result = await invokeTask;
+-                            if (result == null)
+-                                return ResponseData<TResponse>.Error(request.RequestID, $"Invoke '{request}' returned null result.", ResponseErrorKind.Internal)
+-                                    .Log(logger);
+-
+                             LastSuccessfulClients[typeof(McpServerHub)] = connectionId!;
+-                            return result;
++                            return result ?? ResponseData<TResponse>.Error(request.RequestID, "Delivered request returned no result; outcome unknown, not retried.", ResponseErrorKind.Internal);
+                         }
+-                        catch (Exception ex)
++                        return ResponseData<TResponse>.Error(request.RequestID,
++                            $"Request {request.RequestID} was delivered but its outcome is unknown (timeout/cancellation). It was NOT retried. Query a stable operation ID before any new write.", ResponseErrorKind.Timeout);
++                    }
++                    catch (Exception ex)
++                    {
++                        return ResponseData<TResponse>.Error(request.RequestID,
++                            $"Request {request.RequestID} may have been delivered; outcome unknown, NOT retried: {ex.Message}", ResponseErrorKind.Timeout);
++                    }
++                    finally
++                    {
++                        // Cancellation of a SignalR invocation only stops waiting locally.
++                        // Explicit remote cancellation + deadline guard the engine's queued work.
++                        if (invokeTask == null || !invokeTask.IsCompletedSuccessfully)
+                         {
+-                            logger.LogError(ex, $"Invoke '{methodName}': Error invoking '{request}' on client '{connectionId}': {ex.Message}");
+-                            // RemoveCurrentClient(client);
+-                            await Task.Delay(50, cancellationToken); // Wait before retrying
+-                            continue;
++                            if (request is RequestCallTool cancelRequest)
++                            {
++                                try
++                                {
++                                    using var cancelCts = new CancellationTokenSource(1000);
++                                    await client.SendCoreAsync("CancelCallTool", new object[] { cancelRequest }, cancelCts.Token);
++                                }
++                                catch (Exception ex) { logger.LogWarning(ex, "Remote cancellation could not be delivered; outcome remains unknown."); }
++                            }
++                            invokeCts.Cancel();
++                            if (invokeTask != null) _ = invokeTask.ContinueWith(t => { _ = t.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
+                         }
+                     }
+-
+-                    // Timeout occurred
+-                    sawTimeout = true;
+-                    logger.LogWarning($"Invoke '{methodName}': Timeout: Client '{connectionId}' did not respond in {dataArguments.PluginTimeoutMs} ms. Removing from ConnectedClients.");
+-                    // RemoveCurrentClient(client);
+-                    await Task.Delay(retryDelayMs, cancellationToken); // Wait before retrying
+-                    // Restart the loop to try again with a new client
+                 }
+                 var errorKind = sawTimeout
+                     ? ResponseErrorKind.Timeout
+diff --git a/McpPlugin.Server/src/Client/RemoteToolRunner.cs b/McpPlugin.Server/src/Client/RemoteToolRunner.cs
+--- a/McpPlugin.Server/src/Client/RemoteToolRunner.cs
++++ b/McpPlugin.Server/src/Client/RemoteToolRunner.cs
+@@ -10,6 +10,7 @@
+ 
+ using System;
+ using System.Threading;
++using System.Linq;
+ using System.Threading.Tasks;
+ using com.IvanMurzak.McpPlugin.Common;
+ using com.IvanMurzak.McpPlugin.Common.Hub.Client;
+@@ -23,8 +24,9 @@
+ 
+ namespace com.IvanMurzak.McpPlugin.Server
+ {
+-    public class RemoteToolRunner : IClientToolHub, IDisposable
++    public class RemoteToolRunner : ICancellableToolHub, IDisposable
+     {
++        static readonly string ServerEpoch = Guid.NewGuid().ToString("N");
+         readonly ILogger _logger;
+         readonly IDataArguments _dataArguments;
+         readonly IHubContext<McpServerHub> _remoteAppContext;
+@@ -47,22 +49,48 @@
+         public Task<ResponseData<ResponseCallTool>> RunCallTool(RequestCallTool request) => RunCallTool(request, default);
+         public async Task<ResponseData<ResponseCallTool>> RunCallTool(RequestCallTool request, CancellationToken cancellationToken = default)
+         {
++            cancellationToken.ThrowIfCancellationRequested();
++            // Scope is server epoch + authenticated principal + MCP session + project/instance pin.
++            // Incoming DTO scopes are never trusted. Hashing keeps credentials off the wire/logs.
++            var identity = McpSessionTokenContext.CurrentIdentity?.AccountId ?? McpSessionTokenContext.CurrentToken ?? "anonymous";
++            var identityHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)));
++            request.IdentityScope = identityHash;
++            // HTTP handlers run on a captured session context. Sticky selection must be
++            // loaded from the same store as routing, rather than a stale ambient null.
++            var selectedInstance = McpSessionTokenContext.CurrentSelectedInstanceId
++                ?? (_strategy as AccountMcpStrategy)?.Selections.Get(McpSessionTokenContext.CurrentSessionId);
++            request.ExecutionScope = System.Text.Json.JsonSerializer.Serialize(new[] { ServerEpoch, identityHash,
++                McpSessionTokenContext.CurrentSessionId ?? "stdio", McpSessionTokenContext.CurrentProjectPin ?? "",
++                selectedInstance ?? "" });
+             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationTokenSource.Token, cancellationToken);
+             cancellationToken = linkedCts.Token;
++            linkedCts.CancelAfter(TimeSpan.FromMinutes(5));
++            // Notification correlation IDs are opaque and globally scoped on the wire.
++            var wireId = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(request.ExecutionScope + ":" + request.RequestID)));
++            var wireRequest = new RequestCallTool(wireId, request.Name, request.Arguments)
++            {
++                ExecutionScope = request.ExecutionScope,
++                IdentityScope = request.IdentityScope
++            };
++            string? deliveredConnection = null;
++            using var cancelRegistration = cancellationToken.Register(() =>
++            {
++                var destination = Volatile.Read(ref deliveredConnection);
++                if (destination != null) _ = CancelDelivered(destination, wireRequest);
++            });
+ 
+-            var response = await _requestTrackingService.TrackRequestAsync(
+-                request.RequestID,
+-                async () =>
+-                {
++            async Task<ResponseCallTool> Invoke()
++            {
+                     var responseData = await ClientUtils.InvokeAsync<RequestCallTool, ResponseCallTool, McpServerHub>(
+                         logger: _logger,
+                         hubContext: _remoteAppContext,
+                         methodName: nameof(IClientToolHub.RunCallTool),
+-                        request: request,
++                        request: wireRequest,
+                         dataArguments: _dataArguments,
+                         strategy: _strategy,
+                         token: McpSessionTokenContext.CurrentToken,
+-                        cancellationToken: cancellationToken);
++                        cancellationToken: cancellationToken,
++                        onDispatch: destination => Volatile.Write(ref deliveredConnection, destination));
+ 
+                     if (responseData.Status == ResponseStatus.Error)
+                     {
+@@ -73,12 +101,23 @@
+                     }
+ 
+                     return responseData.Value ?? ResponseCallTool.Error("Response data is null", ResponseErrorKind.Internal);
+-                },
+-                TimeSpan.FromMinutes(5),
+-                cancellationToken);
++            }
++            var response = await _requestTrackingService.TrackRequestAsync(
++                wireId, Invoke, TimeSpan.FromMinutes(5), cancellationToken,
++                System.Text.Json.JsonSerializer.Serialize(new { request.Name, Arguments = request.Arguments?.OrderBy(x => x.Key).ToArray() }));
+ 
+             // Wrap the ResponseCallTool back into ResponseData<ResponseCallTool>
+             return response.Pack(request.RequestID);
++        }
++
++        private async Task CancelDelivered(string destination, RequestCallTool request)
++        {
++            try
++            {
++                using var timeout = new CancellationTokenSource(1000);
++                await _remoteAppContext.Clients.Client(destination).SendCoreAsync("CancelCallTool", new object[] { request }, timeout.Token);
++            }
++            catch (Exception ex) { _logger.LogWarning(ex, "Could not cancel delivered request; outcome remains unknown."); }
+         }
+ 
+         public Task<ResponseData<ResponseListTool[]>> RunListTool(RequestListTool request) => RunListTool(request, default);
+diff --git a/McpPlugin.Server/src/Client/RemoteSystemToolRunner.cs b/McpPlugin.Server/src/Client/RemoteSystemToolRunner.cs
+--- a/McpPlugin.Server/src/Client/RemoteSystemToolRunner.cs
++++ b/McpPlugin.Server/src/Client/RemoteSystemToolRunner.cs
+@@ -11,6 +11,7 @@
+ #nullable enable
+ using System;
+ using System.Threading;
++using System.Linq;
+ using System.Threading.Tasks;
+ using com.IvanMurzak.McpPlugin.Common;
+ using com.IvanMurzak.McpPlugin.Common.Hub.Client;
+@@ -31,6 +32,7 @@
+     /// </summary>
+     public class RemoteSystemToolRunner : IClientSystemToolHub, IDisposable
+     {
++        static readonly string ServerEpoch = Guid.NewGuid().ToString("N");
+         readonly ILogger _logger;
+         readonly IDataArguments _dataArguments;
+         readonly IHubContext<McpServerHub> _remoteAppContext;
+@@ -52,37 +54,75 @@
+ 
+         public async Task<ResponseData<ResponseCallTool>> RunSystemTool(RequestCallTool request, CancellationToken cancellationToken = default)
+         {
++            cancellationToken.ThrowIfCancellationRequested();
++            // Scope is server epoch + authenticated principal + MCP session + project/instance pin.
++            // Incoming DTO scopes are never trusted. Hashing keeps credentials off the wire/logs.
++            var identity = McpSessionTokenContext.CurrentIdentity?.AccountId ?? McpSessionTokenContext.CurrentToken ?? "anonymous";
++            var identityHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)));
++            request.IdentityScope = identityHash;
++            // HTTP handlers run on a captured session context. Sticky selection must be
++            // loaded from the same store as routing, rather than a stale ambient null.
++            var selectedInstance = McpSessionTokenContext.CurrentSelectedInstanceId
++                ?? (_strategy as AccountMcpStrategy)?.Selections.Get(McpSessionTokenContext.CurrentSessionId);
++            request.ExecutionScope = System.Text.Json.JsonSerializer.Serialize(new[] { ServerEpoch, "system", identityHash,
++                McpSessionTokenContext.CurrentSessionId ?? "stdio", McpSessionTokenContext.CurrentProjectPin ?? "",
++                selectedInstance ?? "" });
+             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cancellationTokenSource.Token, cancellationToken);
+             cancellationToken = linkedCts.Token;
++            linkedCts.CancelAfter(TimeSpan.FromMinutes(5));
++            // Notification correlation IDs are opaque and globally scoped on the wire.
++            var wireId = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(request.ExecutionScope + ":" + request.RequestID)));
++            var wireRequest = new RequestCallTool(wireId, request.Name, request.Arguments)
++            {
++                ExecutionScope = request.ExecutionScope,
++                IdentityScope = request.IdentityScope
++            };
++            string? deliveredConnection = null;
++            using var cancelRegistration = cancellationToken.Register(() =>
++            {
++                var destination = Volatile.Read(ref deliveredConnection);
++                if (destination != null) _ = CancelDelivered(destination, wireRequest);
++            });
+ 
+-            var response = await _requestTrackingService.TrackRequestAsync(
+-                request.RequestID,
+-                async () =>
+-                {
++            async Task<ResponseCallTool> Invoke()
++            {
+                     var responseData = await ClientUtils.InvokeAsync<RequestCallTool, ResponseCallTool, McpServerHub>(
+                         logger: _logger,
+                         hubContext: _remoteAppContext,
+                         methodName: nameof(IClientSystemToolHub.RunSystemTool),
+-                        request: request,
++                        request: wireRequest,
+                         dataArguments: _dataArguments,
+                         strategy: _strategy,
+                         token: McpSessionTokenContext.CurrentToken,
+-                        cancellationToken: cancellationToken);
++                        cancellationToken: cancellationToken,
++                        onDispatch: destination => Volatile.Write(ref deliveredConnection, destination));
+ 
+                     if (responseData.Status == ResponseStatus.Error)
+                     {
+                         var errorKind = responseData.ErrorKind == ResponseErrorKind.None
+                             ? ResponseErrorKind.Internal
+                             : responseData.ErrorKind;
+-                        return ResponseCallTool.Error(responseData.Message ?? "System tool invocation failed", errorKind, responseData.HttpStatusCode);
++                        return ResponseCallTool.Error(responseData.Message ?? "Tool invocation failed", errorKind, responseData.HttpStatusCode);
+                     }
+ 
+                     return responseData.Value ?? ResponseCallTool.Error("Response data is null", ResponseErrorKind.Internal);
+-                },
+-                TimeSpan.FromMinutes(5),
+-                cancellationToken);
++            }
++            var response = await _requestTrackingService.TrackRequestAsync(
++                wireId, Invoke, TimeSpan.FromMinutes(5), cancellationToken,
++                System.Text.Json.JsonSerializer.Serialize(new { request.Name, Arguments = request.Arguments?.OrderBy(x => x.Key).ToArray() }));
+ 
++            // Wrap the ResponseCallTool back into ResponseData<ResponseCallTool>
+             return response.Pack(request.RequestID);
++        }
++
++        private async Task CancelDelivered(string destination, RequestCallTool request)
++        {
++            try
++            {
++                using var timeout = new CancellationTokenSource(1000);
++                await _remoteAppContext.Clients.Client(destination).SendCoreAsync("CancelCallTool", new object[] { request }, timeout.Token);
++            }
++            catch (Exception ex) { _logger.LogWarning(ex, "Could not cancel delivered request; outcome remains unknown."); }
+         }
+ 
+         public async Task<ResponseData<ResponseListTool[]>> RunListSystemTool(RequestListTool request, CancellationToken cancellationToken = default)
+diff --git a/McpPlugin.Server/src/Client/RequestTrackingService.cs b/McpPlugin.Server/src/Client/RequestTrackingService.cs
+--- a/McpPlugin.Server/src/Client/RequestTrackingService.cs
++++ b/McpPlugin.Server/src/Client/RequestTrackingService.cs
+@@ -7,195 +7,75 @@
+ │  See the LICENSE file in the project root for more information.        │
+ └────────────────────────────────────────────────────────────────────────┘
+ */
+-
++#nullable enable
+ using System;
+ using System.Collections.Concurrent;
+ using System.Threading;
+ using System.Threading.Tasks;
+ using com.IvanMurzak.McpPlugin.Common.Model;
+-using com.IvanMurzak.McpPlugin.Common.Utils;
++using com.IvanMurzak.McpPlugin.Common.Execution;
+ using Microsoft.Extensions.Logging;
+-using R3;
+ 
+ namespace com.IvanMurzak.McpPlugin.Server
+ {
+     public interface IRequestTrackingService
+     {
+-        Task<ResponseCallTool> TrackRequestAsync(
+-            string requestId,
+-            Func<Task<ResponseCallTool>> executeRequest,
+-            TimeSpan timeout,
+-            CancellationToken cancellationToken = default);
++        Task<ResponseCallTool> TrackRequestAsync(string requestId, Func<Task<ResponseCallTool>> executeRequest, TimeSpan timeout, CancellationToken cancellationToken = default, string fingerprint = "");
+         void CompleteRequest(ResponseCallTool response);
+     }
+-
+     public class RequestTrackingService : IRequestTrackingService, IDisposable
+     {
+-        readonly ILogger<RequestTrackingService> _logger;
+-        readonly ConcurrentDictionary<string, PendingRequest> _pendingRequests = new();
+-        readonly CompositeDisposable _disposables = new();
+-
+-        public RequestTrackingService(ILogger<RequestTrackingService> logger)
++        private sealed class Entry
+         {
+-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+-            _logger.LogTrace("RequestTrackingService initialized");
++            public string Fingerprint = "";
++            public Lazy<Task<ResponseCallTool>> Execution = null!;
++            public readonly TaskCompletionSource<ResponseCallTool> Final = new(TaskCreationOptions.RunContinuationsAsynchronously);
+         }
+-
+-        public async Task<ResponseCallTool> TrackRequestAsync(
+-            string requestId,
+-            Func<Task<ResponseCallTool>> executeRequest,
+-            TimeSpan timeout,
+-            CancellationToken cancellationToken = default)
++        private readonly ConcurrentDictionary<string, Entry> _requests = new();
++        private readonly object _gate = new();
++        private bool _disposed;
++        public RequestTrackingService(ILogger<RequestTrackingService> logger) { }
++        public Task<ResponseCallTool> TrackRequestAsync(string requestId, Func<Task<ResponseCallTool>> executeRequest, TimeSpan timeout, CancellationToken cancellationToken = default, string fingerprint = "")
+         {
+-            if (string.IsNullOrEmpty(requestId))
+-                throw new ArgumentException("RequestId cannot be null or empty", nameof(requestId));
+-
+-            _logger.LogTrace("Tracking request: {RequestId} with timeout: {timeout}", requestId, timeout);
+-
+-            var pendingRequest = new PendingRequest(requestId, timeout);
+-            _pendingRequests[requestId] = pendingRequest;
+-
+-            try
++            if (string.IsNullOrWhiteSpace(requestId)) throw new ArgumentException("Request ID is required.");
++            Entry entry;
++            lock (_gate)
+             {
+-                var initialResponse = await executeRequest();
+-                if (initialResponse.Status != ResponseStatus.Processing)
++                if (_disposed) throw new ObjectDisposedException(nameof(RequestTrackingService));
++                if (_requests.TryGetValue(requestId, out var previous) && previous.Fingerprint != fingerprint)
++                    throw new InvalidOperationException("Request ID already belongs to different arguments.");
++                if (!_requests.TryGetValue(requestId, out entry!))
+                 {
+-                    _logger.LogTrace("Request {RequestId} completed immediately", requestId);
+-                    return initialResponse;
++                    if (_requests.Count >= 10000) throw new InvalidOperationException("Request ledger full; history cannot be discarded safely.");
++                    entry = new Entry { Fingerprint = fingerprint };
++                    var captured = entry;
++                    entry.Execution = new Lazy<Task<ResponseCallTool>>(async () =>
++                    {
++                        var initial = await executeRequest().ConfigureAwait(false);
++                        if (initial.Status != ResponseStatus.Processing) return initial;
++                        // Preserve legacy completion notifications. New durable operations
++                        // return Success with a query handle and never enter this wait.
++                        if (await captured.Final.Task.WaitWithTimeout(timeout, cancellationToken))
++                            return await captured.Final.Task.ConfigureAwait(false);
++                        return ResponseCallTool.Error("Delivered operation outcome unknown after timeout/cancellation; NOT retried.", ResponseErrorKind.Timeout).SetRequestID(requestId);
++                    }, LazyThreadSafetyMode.ExecutionAndPublication);
++                    _requests[requestId] = entry;
+                 }
+-
+-                _logger.LogTrace("Request {RequestId} processing: {Message}", requestId, initialResponse);
+-
+-                var finalResult = await pendingRequest.WaitForCompletion(cancellationToken);
+-                return finalResult;
+             }
+-            catch (Exception ex)
+-            {
+-                _logger.LogError(ex, "Error executing request {RequestId}", requestId);
+-                throw;
+-            }
+-            finally
+-            {
+-                _pendingRequests.TryRemove(requestId, out _);
+-            }
++            return entry.Execution.Value;
+         }
+-
+         public void CompleteRequest(ResponseCallTool response)
+         {
+-            if (string.IsNullOrEmpty(response?.RequestID))
+-            {
+-                _logger.LogError("Attempted to complete request with null or empty RequestID\n{Json}",
+-                    response.ToPrettyJson());
+-                return;
+-            }
+-
+-            if (_pendingRequests.TryRemove(response.RequestID, out var pendingRequest))
+-            {
+-                _logger.LogTrace("Completing tracked request: {RequestID}", response.RequestID);
+-                if (pendingRequest is PendingRequest typedPendingRequest)
+-                {
+-                    typedPendingRequest.Complete(response);
+-                }
+-                else
+-                {
+-                    _logger.LogWarning("Type mismatch when completing request {RequestID}. Expected {ExpectedType}, got {ActualType}",
+-                        response.RequestID, nameof(ResponseData), pendingRequest.GetType().Name);
+-                }
+-            }
+-            else
+-            {
+-                _logger.LogWarning("Attempted to complete request {RequestID} that is not being tracked", response.RequestID);
+-            }
++            if (response != null && _requests.TryGetValue(response.RequestID, out var entry))
++                entry.Final.TrySetResult(response);
+         }
+-
+         public void Dispose()
+         {
+-            _logger.LogTrace("RequestTrackingService disposing");
+-
+-            foreach (var kvp in _pendingRequests.ToArray())
++            lock (_gate)
+             {
+-                try
+-                {
+-                    kvp.Value.Cancel();
+-                    kvp.Value.Dispose();
+-                }
+-                catch (Exception ex)
+-                {
+-                    _logger.LogError(ex, "Error canceling pending request {RequestId} during disposal", kvp.Key);
+-                }
+-            }
+-
+-            _pendingRequests.Clear();
+-            _disposables.Dispose();
+-        }
+-
+-        class PendingRequest : IDisposable
+-        {
+-            public string RequestId { get; }
+-            public bool IsCompleted { get; protected set; }
+-            protected readonly CancellationTokenSource TimeoutCts;
+-
+-            readonly TaskCompletionSource<ResponseCallTool> _completionSource = new();
+-
+-            public PendingRequest(string requestId, TimeSpan timeout)
+-            {
+-                RequestId = requestId;
+-                TimeoutCts = new CancellationTokenSource(timeout);
+-                IsCompleted = false;
+-
+-                TimeoutCts.Token.Register(() =>
+-                {
+-                    if (!IsCompleted)
+-                    {
+-                        IsCompleted = true;
+-                        _completionSource.TrySetResult(
+-                            ResponseCallTool.Error($"Request {RequestId} timed out after {timeout}", ResponseErrorKind.Timeout).SetRequestID(RequestId));
+-                    }
+-                });
+-            }
+-
+-            public void Complete(ResponseCallTool response)
+-            {
+-                if (!IsCompleted)
+-                {
+-                    IsCompleted = true;
+-                    _completionSource.TrySetResult(response.SetRequestID(RequestId));
+-                    TimeoutCts.Cancel();
+-                }
+-            }
+-
+-            public async Task<ResponseCallTool> WaitForCompletion(CancellationToken cancellationToken = default)
+-            {
+-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(TimeoutCts.Token, cancellationToken);
+-
+-                try
+-                {
+-                    var response = await _completionSource.Task.WaitAsync(linkedCts.Token);
+-                    return response;
+-                }
+-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+-                {
+-                    return ResponseCallTool.Error("Request was canceled", ResponseErrorKind.Timeout).SetRequestID(RequestId);
+-                }
+-                catch (OperationCanceledException) when (TimeoutCts.Token.IsCancellationRequested)
+-                {
+-                    return ResponseCallTool.Error("Request timed out", ResponseErrorKind.Timeout).SetRequestID(RequestId);
+-                }
+-            }
+-
+-            public void Cancel()
+-            {
+-                if (!IsCompleted)
+-                {
+-                    IsCompleted = true;
+-                    _completionSource.TrySetCanceled();
+-                    TimeoutCts.Cancel();
+-                }
+-            }
+-
+-            public void Dispose()
+-            {
+-                TimeoutCts?.Dispose();
++                _disposed = true;
++                foreach (var entry in _requests.Values) entry.Final.TrySetCanceled();
++                _requests.Clear();
+             }
+         }
+     }
+diff --git a/McpPlugin.Server/src/Extension/ExtensionsTask.cs b/McpPlugin.Server/src/Extension/ExtensionsTask.cs
+--- a/McpPlugin.Server/src/Extension/ExtensionsTask.cs
++++ b/McpPlugin.Server/src/Extension/ExtensionsTask.cs
+@@ -23,31 +23,19 @@
+ 
+         public static async Task<bool> WaitWithTimeout(this Task task, TimeSpan timeout, CancellationToken cancellationToken = default)
+         {
++            using var delayCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+             try
+             {
+-                var completedTask = await Task.WhenAny(task, Task.Delay(timeout, cancellationToken));
+-                return completedTask == task;
++                var delay = Task.Delay(timeout, delayCts.Token);
++                return await Task.WhenAny(task, delay) == task;
+             }
+-            catch (OperationCanceledException)
+-            {
+-                return false; // Task was cancelled
+-            }
++            finally { delayCts.Cancel(); }
+         }
+ 
+         public static Task<bool> WaitWithTimeout<T>(this Task<T> task, int timeoutMs = DefaultTimeoutMs, CancellationToken cancellationToken = default)
+-            => WaitWithTimeout(task, TimeSpan.FromMilliseconds(timeoutMs), cancellationToken);
++            => WaitWithTimeout((Task)task, TimeSpan.FromMilliseconds(timeoutMs), cancellationToken);
+ 
+-        public static async Task<bool> WaitWithTimeout<T>(this Task<T> task, TimeSpan timeout, CancellationToken cancellationToken = default)
+-        {
+-            try
+-            {
+-                var completedTask = await Task.WhenAny(task, Task.Delay(timeout, cancellationToken));
+-                return completedTask == task;
+-            }
+-            catch (OperationCanceledException)
+-            {
+-                return false; // Task was cancelled
+-            }
+-        }
++        public static Task<bool> WaitWithTimeout<T>(this Task<T> task, TimeSpan timeout, CancellationToken cancellationToken = default)
++            => WaitWithTimeout((Task)task, timeout, cancellationToken);
+     }
+ }
+diff --git a/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs b/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs
+--- a/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs
++++ b/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs
+@@ -79,11 +79,13 @@
+                 }
+             }
+ 
+-            var requestData = new RequestCallTool(request.Params.Name, argumentsDict);
++            // Preserve the transport request ID (including numeric vs string type) on
++            // redelivery; a new GUID here would bypass the scoped execution ledger.
++            var requestData = new RequestCallTool("mcp:" + System.Text.Json.JsonSerializer.Serialize(request.JsonRpcRequest.Id), request.Params.Name, argumentsDict);
+             if (logger.IsTraceEnabled)
+                 logger.Trace("Call remote tool '{0}':\n{1}", request.Params.Name, requestData.ToPrettyJson());
+ 
+-            var response = await toolRunner.RunCallTool(requestData);
++            var response = await toolRunner.RunCallTool(requestData, cancellationToken);
+             if (response == null)
+                 return new CallToolResult().SetError($"[Error] '{nameof(response)}' is null");
+ 
+diff --git a/McpPlugin.Server/src/Api/DirectToolCallEndpoints.cs b/McpPlugin.Server/src/Api/DirectToolCallEndpoints.cs
+--- a/McpPlugin.Server/src/Api/DirectToolCallEndpoints.cs
++++ b/McpPlugin.Server/src/Api/DirectToolCallEndpoints.cs
+@@ -255,7 +255,7 @@
+             }
+ 
+             var requestData = new RequestCallTool(name, arguments);
+-            var response = await toolHub.RunCallTool(requestData);
++            var response = await toolHub.RunCallTool(requestData, context.RequestAborted);
+ 
+             // ── Fire webhook ────────────────────────────────────────────
+             if (webhookOptions?.IsToolEnabled == true)
+diff --git a/McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs b/McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs
+new file mode 100644
+--- /dev/null
++++ b/McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs
+@@ -0,0 +1,268 @@
++/*
++┌────────────────────────────────────────────────────────────────────────┐
++│  Author: Ivan Murzak (https://github.com/IvanMurzak)                   │
++│  Repository: GitHub (https://github.com/IvanMurzak/MCP-Plugin-dotnet)  │
++│  Copyright (c) 2025 Ivan Murzak                                        │
++│  Licensed under the Apache License, Version 2.0.                       │
++│  See the LICENSE file in the project root for more information.        │
++└────────────────────────────────────────────────────────────────────────┘
++*/
++#nullable enable
++using System;
++using System.Collections.Generic;
++using System.Linq;
++using System.Text.Json;
++using System.Threading;
++using System.Threading.Tasks;
++using com.IvanMurzak.McpPlugin.Common.Execution;
++using com.IvanMurzak.McpPlugin.Common.Model;
++using com.IvanMurzak.McpPlugin.Common.Utils;
++using com.IvanMurzak.McpPlugin.Server.Auth;
++using com.IvanMurzak.McpPlugin.Server.Strategy;
++using com.IvanMurzak.ReflectorNet;
++using Microsoft.AspNetCore.SignalR;
++using Microsoft.Extensions.Logging.Abstractions;
++using Moq;
++using Xunit;
++
++namespace com.IvanMurzak.McpPlugin.Server.Tests
++{
++    [Collection("McpPlugin.Server")]
++    public sealed class RequestExecutionSafetyTests
++    {
++        private sealed class Transport
++        {
++            public readonly Mock<IHubContext<McpServerHub>> Hub = new();
++            public readonly Mock<ISingleClientProxy> Client = new();
++            public readonly Mock<IMcpConnectionStrategy> Strategy = new();
++            public readonly Mock<IDataArguments> Arguments = new();
++            public int Sends;
++            public int Cancels;
++            public Transport(Func<RequestCallTool, CancellationToken, Task<ResponseData<ResponseCallTool>>> invoke, int timeoutMs = 30)
++            {
++                var clients = new Mock<IHubClients>();
++                clients.Setup(x => x.Client(It.IsAny<string>())).Returns(Client.Object);
++                Hub.SetupGet(x => x.Clients).Returns(clients.Object);
++                Strategy.Setup(x => x.ResolveConnectionId(It.IsAny<string?>(), It.IsAny<int>())).Returns("isolated-test-client");
++                Arguments.SetupGet(x => x.PluginTimeoutMs).Returns(timeoutMs);
++                Client.Setup(x => x.InvokeCoreAsync<ResponseData<ResponseCallTool>>(It.IsAny<string>(), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()))
++                    .Returns((string method, object?[] args, CancellationToken token) => { Interlocked.Increment(ref Sends); return invoke((RequestCallTool)args[0]!, token); });
++                Client.Setup(x => x.SendCoreAsync("CancelCallTool", It.IsAny<object?[]>(), It.IsAny<CancellationToken>()))
++                    .Returns(() => { Interlocked.Increment(ref Cancels); return Task.CompletedTask; });
++            }
++            public Task<ResponseData<ResponseCallTool>> Run(RequestCallTool? request = null, CancellationToken token = default) =>
++                ClientUtils.InvokeAsync<RequestCallTool, ResponseCallTool, McpServerHub>(NullLogger.Instance, Hub.Object, "RunCallTool",
++                    request ?? NewRequest(), Arguments.Object, Strategy.Object, cancellationToken: token);
++            public RemoteToolRunner Runner(IRequestTrackingService tracking) => new(NullLogger<RemoteToolRunner>.Instance, Hub.Object, Arguments.Object, tracking, Strategy.Object);
++        }
++        private static RequestCallTool NewRequest(string id = "same-id", int value = 1) => new(id, "write-tool",
++            new Dictionary<string, JsonElement> { ["value"] = JsonSerializer.SerializeToElement(value) });
++        private static Task<ResponseData<ResponseCallTool>> Success(RequestCallTool request, CancellationToken token) => Task.FromResult(ResponseCallTool.Success().Pack(request.RequestID));
++
++        [Fact]
++        public async Task DeliveredTimeout_IsUnknown_SendsOnce_AndRequestsRemoteCancellation()
++        {
++            var finish = new TaskCompletionSource<ResponseData<ResponseCallTool>>(TaskCreationOptions.RunContinuationsAsynchronously);
++            var transport = new Transport((_, _) => finish.Task);
++            var request = NewRequest();
++            var response = await transport.Run(request);
++            Assert.Equal(ResponseErrorKind.Timeout, response.ErrorKind);
++            Assert.Contains("unknown", response.Message);
++            Assert.Contains("NOT retried", response.Message);
++            Assert.NotNull(request.DeadlineUtc);
++            Assert.Equal(1, transport.Sends);
++            Assert.Equal(1, transport.Cancels);
++            transport.Strategy.Verify(x => x.ResolveConnectionId(It.IsAny<string?>(), It.IsAny<int>()), Times.Once);
++            finish.SetResult(ResponseCallTool.Success().Pack(request.RequestID));
++            Assert.Equal(1, transport.Sends);
++        }
++        [Fact]
++        public async Task DisconnectAfterDispatch_DoesNotTryAnotherEngineOrReinvoke()
++        {
++            var transport = new Transport((_, _) => Task.FromException<ResponseData<ResponseCallTool>>(new InvalidOperationException("connection lost")));
++            Assert.Equal(ResponseErrorKind.Timeout, (await transport.Run()).ErrorKind);
++            Assert.Equal(1, transport.Sends);
++            Assert.Equal(1, transport.Cancels);
++        }
++        [Fact]
++        public async Task NoClientBeforeDispatch_CanRetry_ThenSendsExactlyOnce()
++        {
++            var transport = new Transport(Success, 1000);
++            transport.Strategy.Setup(x => x.ResolveConnectionId(It.IsAny<string?>(), 0)).Returns((string?)null);
++            Assert.Equal(ResponseStatus.Success, (await transport.Run()).Status);
++            Assert.Equal(1, transport.Sends);
++            Assert.Equal(0, transport.Cancels);
++            transport.Strategy.Verify(x => x.ResolveConnectionId(It.IsAny<string?>(), 1), Times.Once);
++        }
++        [Fact]
++        public async Task CancellationBeforeDispatch_DeliversNothing()
++        {
++            using var cancellation = new CancellationTokenSource();
++            cancellation.Cancel();
++            var transport = new Transport(Success);
++            await transport.Run(token: cancellation.Token);
++            Assert.Equal(0, transport.Sends);
++        }
++        [Fact]
++        public async Task CancellationAfterDispatch_IsUnknown_AndSendsRemoteCancel()
++        {
++            using var cancellation = new CancellationTokenSource();
++            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
++            var never = new TaskCompletionSource<ResponseData<ResponseCallTool>>(TaskCreationOptions.RunContinuationsAsynchronously);
++            var transport = new Transport((_, _) => { entered.SetResult(true); return never.Task; }, 5000);
++            var responseTask = transport.Run(token: cancellation.Token);
++            await entered.Task;
++            cancellation.Cancel();
++            Assert.Equal(ResponseErrorKind.Timeout, (await responseTask.WaitAsync(TimeSpan.FromSeconds(5))).ErrorKind);
++            Assert.Equal(1, transport.Sends);
++            Assert.Equal(1, transport.Cancels);
++        }
++        [Fact]
++        public async Task ServerTracker_AtomicInFlightAndCompletionSharing_RejectsCollision()
++        {
++            using var tracking = new RequestTrackingService(NullLogger<RequestTrackingService>.Instance);
++            var finish = new TaskCompletionSource<ResponseCallTool>(TaskCreationOptions.RunContinuationsAsynchronously);
++            int count = 0;
++            Task<ResponseCallTool> Run() => tracking.TrackRequestAsync("scoped-id", () => { ++count; return finish.Task; }, TimeSpan.FromMinutes(5), fingerprint: "tool+args");
++            var first = Run();
++            Assert.All(Enumerable.Range(0, 32).Select(_ => Run()), task => Assert.Same(first, task));
++            finish.SetResult(ResponseCallTool.Success());
++            Assert.Same(await first, await Run());
++            Assert.Equal(1, count);
++            Assert.Throws<InvalidOperationException>(() => { _ = tracking.TrackRequestAsync("scoped-id", () => finish.Task, TimeSpan.Zero, fingerprint: "different"); });
++        }
++        [Fact]
++        public async Task ServerTracker_ProcessingNotificationCanArriveBeforeInitialResponse()
++        {
++            using var tracking = new RequestTrackingService(NullLogger<RequestTrackingService>.Instance);
++            var final = ResponseCallTool.Success().SetRequestID("opaque-scoped-id");
++            int count = 0;
++            var result = await tracking.TrackRequestAsync("opaque-scoped-id", () =>
++            {
++                ++count;
++                tracking.CompleteRequest(final);
++                return Task.FromResult(new ResponseCallTool { Status = ResponseStatus.Processing });
++            }, TimeSpan.FromSeconds(5));
++            Assert.Same(final, result);
++            Assert.Same(final, await tracking.TrackRequestAsync("opaque-scoped-id", () => { ++count; return Task.FromResult(final); }, TimeSpan.Zero));
++            Assert.Equal(1, count);
++        }
++        [Fact]
++        public async Task ServerTracker_ProcessingTimeoutRetainsUnknown_AndDoesNotReexecute()
++        {
++            using var tracking = new RequestTrackingService(NullLogger<RequestTrackingService>.Instance);
++            int count = 0;
++            Task<ResponseCallTool> Run() => tracking.TrackRequestAsync("id", () => { ++count; return Task.FromResult(new ResponseCallTool { Status = ResponseStatus.Processing }); }, TimeSpan.FromMilliseconds(10));
++            var first = await Run();
++            Assert.Equal(ResponseErrorKind.Timeout, first.ErrorKind);
++            tracking.CompleteRequest(ResponseCallTool.Success().SetRequestID("id"));
++            Assert.Same(first, await Run());
++            Assert.Equal(1, count);
++        }
++
++        [AiToolType]
++        public sealed class SharedWriteTool
++        {
++            public static TaskCompletionSource<bool> Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
++            public static TaskCompletionSource<bool> Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
++            public static int Calls;
++            public static int Writes;
++            public static void Reset() { Entered = new(TaskCreationOptions.RunContinuationsAsynchronously); Release = new(TaskCreationOptions.RunContinuationsAsynchronously); Calls = Writes = 0; }
++            [AiTool("shared-write")]
++            public static async Task<string> Write([RequestID] string requestId = "")
++            {
++                Interlocked.Increment(ref Calls);
++                Entered.TrySetResult(true);
++                await Release.Task.WaitAsync(ToolExecutionContext.Current!.CancellationToken);
++                Interlocked.Increment(ref Writes);
++                return requestId;
++            }
++            [AiTool("system-shared-write", ToolType = McpToolType.System)]
++            public static Task<string> SystemWrite([RequestID] string requestId = "") => Write(requestId);
++        }
++        [Fact]
++        public async Task RealToolManager_ConcurrentAndCompletedRequestsExecuteOnce()
++        {
++            SharedWriteTool.Reset();
++            using var plugin = new McpPluginBuilder(new Common.Version()).WithConfig(c => c.GenerateSkillFiles = false).WithTools<SharedWriteTool>().Build(new Reflector());
++            var manager = (McpToolManager)plugin.McpManager.ToolManager!;
++            RequestCallTool Request() => new("stable", "shared-write", new Dictionary<string, JsonElement>()) { ExecutionScope = "account/session/project" };
++            var first = manager.RunCallTool(Request());
++            var duplicates = Enumerable.Range(0, 32).Select(_ => manager.RunCallTool(Request())).ToArray();
++            await SharedWriteTool.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
++            Assert.Equal(1, SharedWriteTool.Calls);
++            SharedWriteTool.Release.SetResult(true);
++            var result = await first;
++            await Task.WhenAll(duplicates);
++            Assert.All(duplicates, task => Assert.Same(result, task.Result));
++            Assert.Same(result, await manager.RunCallTool(Request()));
++            Assert.Equal(1, SharedWriteTool.Writes);
++            Assert.Equal(1UL, manager.ToolCallsCount);
++        }
++        [Fact]
++        public async Task RealToolManager_RemoteCancelReachesToolContextBeforeSideEffects()
++        {
++            SharedWriteTool.Reset();
++            using var plugin = new McpPluginBuilder(new Common.Version()).WithConfig(c => c.GenerateSkillFiles = false).WithTools<SharedWriteTool>().Build(new Reflector());
++            var manager = (McpToolManager)plugin.McpManager.ToolManager!;
++            var request = new RequestCallTool("stable", "shared-write", new Dictionary<string, JsonElement>()) { ExecutionScope = "account/session/project" };
++            var task = manager.RunCallTool(request);
++            await SharedWriteTool.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
++            manager.CancelCallTool(request);
++            await task.WaitAsync(TimeSpan.FromSeconds(5));
++            SharedWriteTool.Release.SetResult(true);
++            await manager.RunCallTool(request);
++            Assert.Equal(0, SharedWriteTool.Writes);
++            Assert.Equal(1, SharedWriteTool.Calls);
++        }
++        [Fact]
++        public async Task RealSystemToolManager_DeduplicatesAndCancelsWrites()
++        {
++            SharedWriteTool.Reset();
++            using var plugin = new McpPluginBuilder(new Common.Version()).WithConfig(c => c.GenerateSkillFiles = false).WithTools<SharedWriteTool>().Build(new Reflector());
++            var manager = (McpSystemToolManager)plugin.McpManager.SystemToolManager!;
++            var request = new RequestCallTool("stable", "system-shared-write", new Dictionary<string, JsonElement>()) { ExecutionScope = "account/session/project" };
++            var first = manager.RunSystemTool(request);
++            var duplicate = manager.RunSystemTool(request);
++            await SharedWriteTool.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
++            manager.CancelCallTool(request);
++            await Task.WhenAll(first, duplicate).WaitAsync(TimeSpan.FromSeconds(5));
++            SharedWriteTool.Release.SetResult(true);
++            Assert.Same(await first, await manager.RunSystemTool(request));
++            Assert.Equal(0, SharedWriteTool.Writes);
++            Assert.Equal(1, SharedWriteTool.Calls);
++        }
++        [Fact]
++        public async Task RemoteScope_IdentitySessionAndProject_SeparateSameId_TimeoutDoesNotRetransmit()
++        {
++            using var tracking = new RequestTrackingService(NullLogger<RequestTrackingService>.Instance);
++            var scopes = new List<string>();
++            var transport = new Transport((request, token) => { scopes.Add(request.ExecutionScope); return Success(request, token); }, 1000);
++            using var runner = transport.Runner(tracking);
++            try
++            {
++                McpSessionTokenContext.CurrentToken = "test-identity-a";
++                McpSessionTokenContext.CurrentSessionId = "session-a";
++                McpSessionTokenContext.CurrentProjectPin = "project-a";
++                await runner.RunCallTool(NewRequest());
++                await runner.RunCallTool(NewRequest()); // completed response reused
++                Assert.Equal(1, transport.Sends);
++                McpSessionTokenContext.CurrentSessionId = "session-b";
++                await runner.RunCallTool(NewRequest());
++                McpSessionTokenContext.CurrentProjectPin = "project-b";
++                await runner.RunCallTool(NewRequest());
++                McpSessionTokenContext.CurrentToken = "test-identity-b";
++                await runner.RunCallTool(NewRequest());
++                Assert.Equal(4, transport.Sends);
++                Assert.Equal(4, scopes.Distinct().Count());
++                Assert.All(scopes, scope => Assert.DoesNotContain("test-identity", scope));
++            }
++            finally
++            {
++                McpSessionTokenContext.CurrentToken = null;
++                McpSessionTokenContext.CurrentSessionId = null;
++                McpSessionTokenContext.CurrentProjectPin = null;
++            }
++        }
++    }
++}
+diff --git a/McpPlugin.Server.Tests/RequestExecutionTransportTests.cs b/McpPlugin.Server.Tests/RequestExecutionTransportTests.cs
+new file mode 100644
+--- /dev/null
++++ b/McpPlugin.Server.Tests/RequestExecutionTransportTests.cs
+@@ -0,0 +1,113 @@
++/*
++┌────────────────────────────────────────────────────────────────────────┐
++│  Author: Ivan Murzak (https://github.com/IvanMurzak)                   │
++│  Repository: GitHub (https://github.com/IvanMurzak/MCP-Plugin-dotnet)  │
++│  Copyright (c) 2025 Ivan Murzak                                        │
++│  Licensed under the Apache License, Version 2.0.                       │
++│  See the LICENSE file in the project root for more information.        │
++└────────────────────────────────────────────────────────────────────────┘
++*/
++#nullable enable
++using System;
++using System.Collections.Generic;
++using System.Net.Http;
++using System.Text.Json;
++using System.Threading;
++using System.Threading.Tasks;
++using com.IvanMurzak.McpPlugin.Common;
++using com.IvanMurzak.McpPlugin.Common.Execution;
++using com.IvanMurzak.McpPlugin.Common.Model;
++using com.IvanMurzak.McpPlugin.Common.Utils;
++using com.IvanMurzak.McpPlugin.Server.Tests.Infrastructure;
++using com.IvanMurzak.ReflectorNet;
++using Microsoft.Extensions.DependencyInjection;
++using Xunit;
++
++namespace com.IvanMurzak.McpPlugin.Server.Tests
++{
++    [Collection("McpPlugin.Server")]
++    public sealed class RequestExecutionTransportTests
++    {
++        [AiToolType]
++        public sealed class PausedTool
++        {
++            public static TaskCompletionSource<Action> Posted = new(TaskCreationOptions.RunContinuationsAsynchronously);
++            public static TaskCompletionSource<bool> Canceled = new(TaskCreationOptions.RunContinuationsAsynchronously);
++            public static int Writes;
++            public static void Reset()
++            {
++                Posted = new(TaskCreationOptions.RunContinuationsAsynchronously);
++                Canceled = new(TaskCreationOptions.RunContinuationsAsynchronously);
++                Writes = 0;
++            }
++            [AiTool("paused-write")]
++            public static async Task<int> Write()
++            {
++                var context = ToolExecutionContext.Current!;
++                var result = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
++                using var registration = context.CancellationToken.Register(() => { Canceled.TrySetResult(true); result.TrySetCanceled(); });
++                // A controllable engine boundary, with the production ambient context.
++                // The actual Unity queue algorithm is tested separately from shipped source.
++                Posted.SetResult(() =>
++                {
++                    try { context.ThrowIfExpired(); result.TrySetResult(Interlocked.Increment(ref Writes)); }
++                    catch (OperationCanceledException) { result.TrySetCanceled(); }
++                });
++                return await result.Task;
++            }
++        }
++        private static IMcpPlugin Build(string url) => new McpPluginBuilder(new Common.Version { Api = Consts.ApiVersion, Plugin = Consts.PluginVersion })
++            .WithConfig(config => { config.Host = url; config.GenerateSkillFiles = false; config.KeepConnected = false; })
++            .WithTools<PausedTool>().Build(new Reflector());
++
++        [Fact]
++        public async Task RealHttpAndSignalR_McpCancelReachesQueuedPluginInvocation()
++        {
++            PausedTool.Reset();
++            await using var host = await NoneAuthMcpHost.StartAsync(services => services.AddSingleton<IDataArguments>(
++                new DataArguments(new[] { "auth=none", "plugin-timeout=10000" })));
++            using var plugin = Build(host.BaseUrl);
++            using var connectTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
++            await plugin.Connect(connectTimeout.Token);
++            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
++            var session = await host.HandshakeAsync(http);
++            var call = host.PostAsync(http, session, new { jsonrpc = "2.0", id = 45, method = "tools/call", @params = new { name = "paused-write", arguments = new { } } });
++            var queued = await PausedTool.Posted.Task.WaitAsync(TimeSpan.FromSeconds(5));
++            await host.PostAsync(http, session, new { jsonrpc = "2.0", method = "notifications/cancelled", @params = new { requestId = 45, reason = "test queued cancellation" } });
++            await PausedTool.Canceled.Task.WaitAsync(TimeSpan.FromSeconds(5));
++            queued();
++            Assert.Equal(0, PausedTool.Writes);
++            Assert.Equal(1UL, plugin.McpManager.ToolManager!.ToolCallsCount);
++            // MCP may omit the canceled response. Close this test client's pending HTTP
++            // request after observing cancellation at the real plugin execution boundary.
++            http.Dispose();
++            try { await call.WaitAsync(TimeSpan.FromSeconds(5)); }
++            catch (OperationCanceledException) { }
++            catch (HttpRequestException) { }
++        }
++
++        [Fact]
++        public async Task RealHttpAndSignalR_TimeoutSendsOnce_RecoveryDoesNotWrite()
++        {
++            PausedTool.Reset();
++            await using var host = await NoneAuthMcpHost.StartAsync(services => services.AddSingleton<IDataArguments>(
++                new DataArguments(new[] { "auth=none", "plugin-timeout=1000" })));
++            using var plugin = Build(host.BaseUrl);
++            using var connectTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
++            await plugin.Connect(connectTimeout.Token);
++            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
++            var session = await host.HandshakeAsync(http);
++            var call = host.PostAsync(http, session, new { jsonrpc = "2.0", id = 46, method = "tools/call", @params = new { name = "paused-write", arguments = new { } } });
++            var queued = await PausedTool.Posted.Task.WaitAsync(TimeSpan.FromSeconds(5));
++            var (body, _) = await call.WaitAsync(TimeSpan.FromSeconds(5));
++            Assert.Contains("unknown", body);
++            Assert.Contains("NOT retried", body);
++            await PausedTool.Canceled.Task.WaitAsync(TimeSpan.FromSeconds(5));
++            var (redelivery, _) = await host.PostAsync(http, session, new { jsonrpc = "2.0", id = 46, method = "tools/call", @params = new { name = "paused-write", arguments = new { } } });
++            Assert.Contains("unknown", redelivery);
++            queued();
++            Assert.Equal(0, PausedTool.Writes);
++            Assert.Equal(1UL, plugin.McpManager.ToolManager!.ToolCallsCount);
++        }
++    }
++}

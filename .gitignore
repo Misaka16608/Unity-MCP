@@ -31,3 +31,6 @@ Unity-MCP.wiki
 
 # Python bytecode (e.g. .github/scripts/ generates __pycache__/*.pyc when CI gates run locally).
 __pycache__/
+
+# Isolated, reproducible request-safety dependency builds (see commands/request-safety).
+.local/request-safety/

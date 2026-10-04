@@ -1,0 +1,141 @@
+{
+  "packageVersion": "8.6.0-request-safety.1",
+  "apiVersion": "2.0.0-request-safety.1",
+  "serverVersion": "9.2.9-request-safety.1",
+  "sources": [
+    {
+      "repo": "MCP-Plugin-dotnet",
+      "commit": "94ccb955bf95adc3499a3925491946e14367d551",
+      "patch": "patches/MCP-Plugin-dotnet.patch",
+      "files": [
+        {
+          "path": "McpPlugin.Common/McpPlugin.Common.csproj",
+          "baseSha256": "b4816cd200e77274ff183c01689fb8721fd4508dde5c9baa3adc82c6f89ccb32",
+          "patchedSha256": "b88bc3d0cfe2461c7f77669b3ec40294cf63cd19e6bf9e0bfa34260a74d99389"
+        },
+        {
+          "path": "McpPlugin.Common/src/Utils/Consts.cs",
+          "baseSha256": "9e11127884ac9f0cfcdba4b5f6fae48d1faf43f8cedc36dd60c444470742d9b3",
+          "patchedSha256": "fbef659fa4d792d2b784457a98a5644df05ff34f2e5ec14f204b90ed811bbf4e"
+        },
+        {
+          "path": "McpPlugin.Common/src/Data/Request/Tool/Call/RequestCallTool.cs",
+          "baseSha256": "ef14f2db835c2d9c3d4c8bae3f882a094ab273e8b47102165d07a2b605d16ed8",
+          "patchedSha256": "5cf3207b4562128818e822be58fcb6d11fd3e78bc9aeb7b8ccbf8cf1ea38af17"
+        },
+        {
+          "path": "McpPlugin.Common/src/Execution/ExecutionRegistry.cs",
+          "baseSha256": null,
+          "patchedSha256": "8291e09669796e8f6f334b1c789c3cabe2a9d5638845c3940262ea51fd5c959e"
+        },
+        {
+          "path": "McpPlugin.Common/src/Execution/ToolExecutionContext.cs",
+          "baseSha256": null,
+          "patchedSha256": "35f23941e600692054fa172f7d2ee6b203ecf835377421a89d401c6819b2efeb"
+        },
+        {
+          "path": "McpPlugin.Common/src/Hub/Client/ICancellableToolHub.cs",
+          "baseSha256": null,
+          "patchedSha256": "a6e0705d1d3011ac7e3faaccb06330ea8de2bd49d3da59b29834d62699f35626"
+        },
+        {
+          "path": "McpPlugin/McpPlugin.csproj",
+          "baseSha256": "3579fe3ed099a2e64bd2fd9c150a9a2533ca47c52d51624726377c8b55f147e5",
+          "patchedSha256": "e3a96f49092811eb79558654c8dc2cfdd4c1e6e5a937e02e4fbae9deaa1c0f89"
+        },
+        {
+          "path": "McpPlugin/src/Mcp/McpToolManager.cs",
+          "baseSha256": "b4bb0337b5e01fb0a2a30f38d421166a373f403d4e58a5bc3df805618f2cf41b",
+          "patchedSha256": "53ed7a34423aaa476a61162779feb1dc9f22146862e380b8bcde5e3c171a805d"
+        },
+        {
+          "path": "McpPlugin/src/Mcp/ToolRequestExecutor.cs",
+          "baseSha256": null,
+          "patchedSha256": "56c0b7575f4d6b04d734acfb923b7dc5feac8d53164af14d34b895a83e7c93c9"
+        },
+        {
+          "path": "McpPlugin/src/Mcp/McpSystemToolManager.cs",
+          "baseSha256": "c926599ed2f51ed12b881fb521ba0cc718201e9f05931b1947ce92e2e6676662",
+          "patchedSha256": "df18d00c88ef1750f6b3c55da9c5b6f9646d047dbab1082c3f5c28e15ec442a2"
+        },
+        {
+          "path": "McpPlugin/src/Mcp/Tool/RunTool.cs",
+          "baseSha256": "46e004b973ea4daaf714dd12983633c33ec9d3a77fd6becbea5a6d97e69fb191",
+          "patchedSha256": "dbb9e3502f5b947f2e813c5a6ebaf530ca3192e8ca3b66c793f19602da33d6f6"
+        },
+        {
+          "path": "McpPlugin/src/McpPlugin/Network/Client/McpManagerClientHub.cs",
+          "baseSha256": "b17e9e12e1535eec36c2c163236a0cbef60fd6c696b863a134e9cfe38df43438",
+          "patchedSha256": "d5e16b61f630769bfe6776315ceba6a3bace48515699ea923b5ca9f12bb66a6b"
+        },
+        {
+          "path": "McpPlugin.Server/McpPlugin.Server.csproj",
+          "baseSha256": "2c1c2c029379d1e487e5a0436620a28cbb2ec7a217c8cc221837974d58e6e4af",
+          "patchedSha256": "478eefc2df4b14639794b606ec2ab706250e889339cd9b80273002dac5db5d61"
+        },
+        {
+          "path": "McpPlugin.Server/src/Client/ClientUtils.cs",
+          "baseSha256": "14c94141ea25ea56a533450fd46a988194904b4e1adea8894d6f192909af424a",
+          "patchedSha256": "8525467da6b940108ae41a8f74d81034bc1ee6689694839f0110f3956b296315"
+        },
+        {
+          "path": "McpPlugin.Server/src/Client/RemoteToolRunner.cs",
+          "baseSha256": "0bd7af78fe1d7b299610361e2ec712d9e8b88aa260b01a86e51c874404eee6ec",
+          "patchedSha256": "acb52261e86d7632f43ec58a9ac86bd2fc009ab63308d768682c96ed3a056d38"
+        },
+        {
+          "path": "McpPlugin.Server/src/Client/RemoteSystemToolRunner.cs",
+          "baseSha256": "e22580ae758c9a7f4fffd96b02d69f80076cbdc7363b6cf6616560268ee3c9e9",
+          "patchedSha256": "d9af02c3a674df9b7055258deb370112f3cd4ce8d19cc3664a3a6f7cfa1e235d"
+        },
+        {
+          "path": "McpPlugin.Server/src/Client/RequestTrackingService.cs",
+          "baseSha256": "4c73a684e22f8ebbcca09c91d05d057852064f5fefa87e90794700fb06162a76",
+          "patchedSha256": "75f22038c0b2495c85632933d96a05d5c69ccc7c619d1fc015fd7979ff514930"
+        },
+        {
+          "path": "McpPlugin.Server/src/Extension/ExtensionsTask.cs",
+          "baseSha256": "c171a3afd5ce723863d5329ecdad377c6b71ce61c668e841012481eb2e962669",
+          "patchedSha256": "2f928751b809caf27fc0b6ea4ccc9dde2d201690f89bc386bc6d57674b545653"
+        },
+        {
+          "path": "McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs",
+          "baseSha256": "cbba201f78bf204464ed5d6290f29b8fc710c4574a136d0b6daf1788cd10d069",
+          "patchedSha256": "10633ab51585badd9926445bd9100f1c21ae10e7bd62d726b3e6b27450f8afaf"
+        },
+        {
+          "path": "McpPlugin.Server/src/Api/DirectToolCallEndpoints.cs",
+          "baseSha256": "01d38768b08b29bdc3df0eefe2fa84c0ff28d114d45c33c2234b8eba82f2e9bf",
+          "patchedSha256": "e678e36f7a9438a8650d1913b46b6f4cdba42da3c7f92ac7d57f5bc2cf617caf"
+        },
+        {
+          "path": "McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs",
+          "baseSha256": null,
+          "patchedSha256": "13a3c58882a04199ef24c5d9428b7c78dfab15e6c98a00514ba150f4ed69b13c"
+        },
+        {
+          "path": "McpPlugin.Server.Tests/RequestExecutionTransportTests.cs",
+          "baseSha256": null,
+          "patchedSha256": "1673e93b8e14d4816bf4ae07ebab4a41fa30c7dc187ec60d30923d18aa2854f4"
+        }
+      ]
+    },
+    {
+      "repo": "GameDev-MCP-Server",
+      "commit": "9bf8483789fd3d6c32d228da392126f16081022e",
+      "patch": "patches/GameDev-MCP-Server.patch",
+      "files": [
+        {
+          "path": "com.IvanMurzak.GameDev.MCP.Server.csproj",
+          "baseSha256": "1b0482c5c0bd40dde4a80a6c83e486786730bc19c7af5b65d8ff647497f21863",
+          "patchedSha256": "7f96a104b0f2b481f50c90237af2cf1656b0c39faa7c2eed8e97b284a6e2d1cf"
+        },
+        {
+          "path": "server.json",
+          "baseSha256": "328d9c287b4f6ddedcf0e863b8c42e1226a9bbcccfba219fbd192a23a3d6bb7c",
+          "patchedSha256": "1551525a68d0c2279dc6391a6390b772f2e2e3bbd74c0bc4778e5996b8dd181b"
+        }
+      ]
+    }
+  ]
+}

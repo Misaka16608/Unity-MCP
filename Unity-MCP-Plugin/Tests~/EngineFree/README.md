@@ -13,6 +13,13 @@ comments explaining what may and may not be called.
 
 CI job: `engine-free-tests` in `.github/workflows/test_pull_request.yml`.
 
+The local request-safety repair consumes unpublished `8.6.0-request-safety.1` packages.
+Use `pwsh -File commands/request-safety/build.ps1` from the repository root to build
+the pinned dependencies and run all 61 EngineFree tests (44 existing + 17 safety cases).
+The standalone command below requires that local feed/cache first. Public NuGet and
+the existing release/chain CI do not supply this unpublished pair; see
+[`commands/request-safety/README.md`](../../../commands/request-safety/README.md).
+
 ```bash
 dotnet test Unity-MCP-Plugin/Tests~/EngineFree/EngineFree.csproj -c Release
 ```
@@ -121,3 +128,4 @@ locally against a throwaway feed of repacked `-ws.g<sha8>` packages:
 | `NuGetPinGateTests.cs` | NuGet pins + the asmdef generation gate of issue #957, re-implementing `.github/scripts/check_nuget_gate.py`'s rule in C# over the compiled-in constants; plus the csproj pin-parity guard |
 | `ConnectionConfigTests.cs` | Cloud authorization-server connection config (`DeviceAuthService`) and the plugin log-level gate |
 | `ToolAttributeTests.cs` | `[AiToolType]` / `[AiTool]` plumbing, driven through the real `McpPluginBuilder` registration path |
+| `RequestExecutionTests.cs` | Real execution registry, queued callback cancellation/reentry, durable operation admission, identity isolation, recovery and immutable journal corruption |
