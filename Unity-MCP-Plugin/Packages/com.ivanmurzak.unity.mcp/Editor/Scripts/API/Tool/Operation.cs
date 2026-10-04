@@ -41,6 +41,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             EditorApplication.quitting += Dispose;
         }
         private static void Dispose() { if (Store.IsValueCreated) Store.Value.Dispose(); }
+        internal static int ActiveExecutionCount => Store.IsValueCreated ? Store.Value.ActiveExecutionCount : 0;
         private static string Identity => ToolExecutionContext.Current?.IdentityScope ?? "local";
 
         [AiTool("tool-operation-start", Title = "Tool / Start durable operation", IdempotentHint = true)]
@@ -68,7 +69,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                 // Detached from the accepting MCP request's timeout. Only explicit operation
                 // cancellation or editor shutdown cancels this execution.
                 ToolExecutionContext.Current = new ToolExecutionContext(identity, token, null,
-                    () => store.MarkMainThreadStarted(identity, operationId));
+                    () => store.MarkMainThreadStarted(identity, operationId), allowDuringMaintenance: true);
                 var request = new RequestCallTool(operationId, toolName, arguments)
                 {
                     IdentityScope = identity,

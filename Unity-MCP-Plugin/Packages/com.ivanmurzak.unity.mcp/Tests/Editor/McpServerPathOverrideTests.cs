@@ -251,7 +251,10 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests
             var marker = File.Exists(McpServerManager.VersionFullPath)
                 ? File.ReadAllText(McpServerManager.VersionFullPath)
                 : null;
-            Assert.AreEqual(marker == McpServerManager.ServerVersion, McpServerManager.IsVersionMatches());
+            if (marker == null || marker.Trim() != PairedServerDelivery.Release.serverVersion)
+                Assert.IsFalse(McpServerManager.IsVersionMatches());
+            else
+                Assert.AreEqual(PairedServerDelivery.CachedServerMatches(ExpectedCacheFolder, McpServerManager.ExecutableFullName), McpServerManager.IsVersionMatches());
         }
 
         // ── (d) the <projectRoot>/.env layer ────────────────────────────────────────

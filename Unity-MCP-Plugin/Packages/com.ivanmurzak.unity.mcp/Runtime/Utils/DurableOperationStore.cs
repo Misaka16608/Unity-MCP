@@ -56,6 +56,7 @@ namespace com.IvanMurzak.Unity.MCP.Runtime.Utils
         private readonly object _gate = new();
         private readonly Dictionary<string, Active> _active = new(StringComparer.Ordinal);
         private readonly FileStream _lease;
+        public int ActiveExecutionCount { get { lock (_gate) return _active.Count; } }
         private bool _disposed;
         private Exception? _persistenceFailure;
 

@@ -90,7 +90,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests
         {
             // The manifest URL shares the release-download directory prefix with the per-RID zip URL — so a
             // verified manifest can never be fetched from a different release than the downloaded zip.
-            var sumsUrl = McpServerChecksum.Sha256SumsUrl(McpServerManager.ServerVersion);
+            var sumsUrl = PairedServerDelivery.Release.releaseBaseUrl + "/SHA256SUMS";
             var zipUrl = McpServerManager.ExecutableZipUrl;
             var zipDir = zipUrl.Substring(0, zipUrl.LastIndexOf('/') + 1);
             StringAssert.StartsWith(zipDir, sumsUrl);

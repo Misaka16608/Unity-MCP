@@ -1,4 +1,4 @@
-param([switch]$SkipPublish, [switch]$SeedToolProject)
+param([switch]$SkipPublish, [switch]$SeedToolProject, [switch]$Delivery)
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $buildRoot = Join-Path $repoRoot '.local/request-safety'
@@ -59,6 +59,14 @@ try {
             [IO.File]::WriteAllText($manifestPath, ($installed | ConvertTo-Json -Depth 20).Replace("`r`n", "`n") + "`n")
         }
         Write-Host 'Seeded paired local dependencies in the Unity-MCP tool project only.'
+    }
+    if ($Delivery) {
+        foreach ($rid in 'win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'win-x86', 'osx-x64', 'osx-arm64') {
+            Invoke-Dotnet -Arguments @('publish', (Join-Path $server 'com.IvanMurzak.GameDev.MCP.Server.csproj'), '-c', 'Release', '-r', $rid,
+                '--self-contained', 'true', '-p:PublishSingleFile=true', '-p:IncludeNativeLibrariesForSelfExtract=true', '-o', (Join-Path $buildRoot "delivery/publish/$rid"))
+        }
+        & python (Join-Path $PSScriptRoot 'package-delivery.py') --nuget-cache (Join-Path $buildRoot "nuget/$sourceDigest")
+        if ($LASTEXITCODE -ne 0) { throw 'Paired delivery packaging failed.' }
     }
     Write-Host "Request-safety build and tests complete. Local artifacts: $buildRoot"
 } finally {

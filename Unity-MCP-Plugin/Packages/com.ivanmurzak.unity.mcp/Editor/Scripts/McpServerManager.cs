@@ -21,6 +21,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using com.IvanMurzak.McpPlugin.ServerLaunch;
+using com.IvanMurzak.Unity.MCP.Editor.DependencyResolver;
 using com.IvanMurzak.ReflectorNet.Utils;
 using com.IvanMurzak.Unity.MCP.Editor.DevControl;
 using com.IvanMurzak.Unity.MCP.Editor.UI;
@@ -128,20 +129,21 @@ namespace com.IvanMurzak.Unity.MCP.Editor
                     ServerPathEnvVar,
                     serverPathOverride);
 
-            DownloadServerBinaryIfNeeded(unattended: true)
-                .ContinueWith(task =>
-                {
-                    if (task.IsFaulted || !task.Result)
-                        return; // Failed to download binaries, skip auto-start
+            // Restore the project-owned PID first, then begin even an offline install.
+            // A bundled copy may complete synchronously; starting it inside this constructor
+            // could otherwise try to replace the still-running previous domain's executable.
+            EditorApplication.update += InitializeServerDelivery;
+        }
 
-                    if (!task.Result)
-                        return; // No binaries available (either in CI or failed to download), skip auto-start
-
-                    if (EnvironmentUtils.IsCi())
-                        return; // Skip auto-start in CI environment
-
+        static async void InitializeServerDelivery()
+        {
+            EditorApplication.update -= InitializeServerDelivery;
+            try
+            {
+                if (await DownloadServerBinaryIfNeeded(unattended: true) && !EnvironmentUtils.IsCi())
                     EditorApplication.update += StartServerIfNeeded;
-                });
+            }
+            catch (Exception ex) { FailDownload(ex.Message, unattended: true); }
         }
 
         #region Binary Metadata
@@ -324,7 +326,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor
         /// pinned by <see cref="ServerVersion"/> — NEVER the plugin version (the two diverge).
         /// </summary>
         public static string ExecutableZipUrl
-            => $"https://github.com/IvanMurzak/GameDev-MCP-Server/releases/download/{ServerReleaseTag(ServerVersion)}/{ExecutableZipName}";
+            => PairedServerDelivery.Release.ServerUrl(PlatformName);
 
         #endregion // Binary Metadata
 
@@ -376,7 +378,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor
 
             // Compared against the pinned shared-server version, NOT the plugin version —
             // the cached binary is a GameDev-MCP-Server release.
-            return binaryVersion == ServerVersion;
+            return PairedServerDelivery.CachedServerMatches(CachedExecutableFolderPath, ExecutableFullName);
         }
 
         /// <param name="interactive">
@@ -503,6 +505,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor
             {
                 // Binary is present and current — clear any stale failure so the window hides the error/retry UI.
                 _lastDownloadError.Value = null;
+                PackageDeliveryStatus.Set("Matching MCP server ready");
                 return Task.FromResult(true);
             }
 
@@ -555,6 +558,9 @@ namespace com.IvanMurzak.Unity.MCP.Editor
                 SetDownloadingStatus();
 
                 var previousKeepServerRunning = UnityMcpPluginEditor.KeepServerRunning;
+                var paired = PairedServerDelivery.Release;
+                var artifact = paired.Server(PlatformName);
+                PackageDeliveryStatus.Set("Preparing matching MCP server");
 
                 // Per-attempt UNIQUE temp archive path (mirrors the staging folder's Guid below). Even if a future
                 // caller bypasses the single-flight guard, two downloads target DIFFERENT files and can never
@@ -563,19 +569,17 @@ namespace com.IvanMurzak.Unity.MCP.Editor
                 UnityEngine.Debug.Log($"Temporary archive file path: <color=yellow>{archiveFilePath}</color>");
 
                 // Download the zip file from the GitHub release notes
-                using (var client = new WebClient())
+                var bundledServer = Path.Combine(PackageDelivery.DirectoryPath, "servers", artifact.fileName);
+                if (File.Exists(bundledServer))
+                    File.Copy(bundledServer, archiveFilePath);
+                else using (var client = new WebClient())
                 {
                     await client.DownloadFileTaskAsync(ExecutableZipUrl, archiveFilePath);
                 }
 
-                // FAIL-CLOSED INTEGRITY GATE (verify-before-execute). The zip is on disk but UNTRUSTED. Before
-                // extracting or launching it, download the release's SHA256SUMS manifest (sibling of the zip URL
-                // under the same v<ServerVersion> tag), compute the downloaded zip's SHA256 (pure BCL), and
-                // compare against the manifest entry for THIS RID. On MISMATCH / MISSING entry / unparsable-or-
-                // unfetchable manifest we delete the temp zip and return WITHOUT extracting or launching — an
-                // unverified binary must NEVER be executed (a compromised release asset or a trusted-CA MITM
-                // would otherwise yield arbitrary code execution; issue #841).
-                if (!await VerifyDownloadedArchive(archiveFilePath, ServerVersion, ExecutableZipName))
+                // The package pins the archive hash independently of the download server.
+                // Verify both bundled and downloaded bytes before extraction or execution.
+                if (!PairedReleaseManifest.VerifyFile(archiveFilePath, artifact.sha256))
                 {
                     try { File.Delete(archiveFilePath); } catch { /* best effort */ }
                     return FailDownload(
@@ -617,7 +621,13 @@ namespace com.IvanMurzak.Unity.MCP.Editor
 
                 // Write the version marker INTO the staged payload, so the published per-RID folder is complete
                 // the instant it appears — there is no window where the binary exists without its version file.
-                File.WriteAllText(Path.Combine(payloadFolder, "version"), ServerVersion);
+                if (!PairedReleaseManifest.VerifyFile(extractedBinary, artifact.executableSha256))
+                    return FailDownload("The extracted server does not match the paired release.", unattended);
+                File.WriteAllText(Path.Combine(payloadFolder, "version"), paired.serverVersion);
+
+                // Block fresh execution admission before observing in-flight work. Both
+                // managers keep duplicate-result reuse and operation status/cancel available.
+                using var maintenance = await PairedServerDelivery.DrainRequests();
 
                 // Fix A (version-aware server restart, 07 §7.1): when a server is currently Running/Starting, STOP
                 // it and await Stopped (bounded) BEFORE the binary folder is deleted. Otherwise the live server
@@ -661,7 +671,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor
                             publishFailReason = $"Server binary missing after publish at: {CachedExecutableFullPath}";
                             return false;
                         }
-                        if (GetCachedBinaryVersion() != ServerVersion)
+                        if (GetCachedBinaryVersion() != paired.serverVersion)
                         {
                             publishFailReason = "The published server binary failed the post-publish version check.";
                             return false;
@@ -704,6 +714,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor
                 if (!unattended)
                     ShowUpdateResultPopup(success: true);
 
+                PackageDeliveryStatus.Set("Matching MCP server ready");
                 return true;
             }
             catch (Exception ex)
@@ -838,6 +849,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor
         /// </summary>
         static bool FailDownload(string reason, bool unattended)
         {
+            PackageDeliveryStatus.Set("Server setup failed: " + reason);
             UnityEngine.Debug.LogError($"MCP server binary download failed: {reason}");
             _lastDownloadError.Value = reason;
             ResetDownloadingToStopped();
@@ -1302,6 +1314,15 @@ namespace com.IvanMurzak.Unity.MCP.Editor
                         var processName = process.ProcessName.ToLowerInvariant();
                         if (processName.Contains(McpServerProcessName))
                         {
+                            var actualPath = process.MainModule?.FileName;
+                            var comparison = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                                ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+                            if (actualPath == null || !string.Equals(Path.GetFullPath(actualPath), Path.GetFullPath(ExecutableFullPath), comparison))
+                            {
+                                _logger.LogWarning("Stored MCP PID {pid} belongs to a different executable; refusing to adopt or restart it", savedPid);
+                                EditorPrefs.DeleteKey(ProcessIdKey);
+                                return;
+                            }
                             _serverProcess = process;
                             _serverStatus.Value = McpServerStatus.Running;
                             _logger.LogInformation("Reconnected to existing MCP server process (PID: {pid})", savedPid);
@@ -1351,8 +1372,15 @@ namespace com.IvanMurzak.Unity.MCP.Editor
 
                 _serverStatus.Value = McpServerStatus.Starting;
 
-                // Kill any orphaned server processes to free the port
-                KillOrphanedServerProcesses();
+                // A process name and occupied port do not establish ownership. Never
+                // kill another editor's server to make room for this paired installation.
+                var occupiedPid = GetPidListeningOnPort(UnityMcpPluginEditor.Port);
+                if (occupiedPid > 0)
+                {
+                    _logger.LogError("Port {port} is occupied by PID {pid}; choose another port or stop its owner before starting this server", UnityMcpPluginEditor.Port, occupiedPid);
+                    _serverStatus.Value = McpServerStatus.Stopped;
+                    return false;
+                }
 
                 try
                 {
@@ -1583,82 +1611,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor
             });
         }
 
-        /// <summary>
-        /// Kills an orphaned gamedev-mcp-server process that is occupying this project's port.
-        /// Only targets the specific process listening on <see cref="UnityMcpPluginEditor.Port"/>.
-        /// If the port owner cannot be determined, does nothing (fails safe).
-        /// </summary>
-        static void KillOrphanedServerProcesses()
-        {
-            try
-            {
-                var port = UnityMcpPluginEditor.Port;
-                var currentPid = _serverProcess?.Id ?? -1;
 
-                var listeningPid = GetPidListeningOnPort(port);
-
-                if (listeningPid <= 0)
-                {
-                    _logger.LogDebug("No process found listening on port {port}, port is available", port);
-                    return;
-                }
-
-                if (listeningPid == currentPid)
-                {
-                    _logger.LogDebug("Our own server process (PID: {pid}) is listening on port {port}", listeningPid, port);
-                    return;
-                }
-
-                try
-                {
-                    using var process = Process.GetProcessById(listeningPid);
-                    if (process == null || process.HasExited)
-                    {
-                        _logger.LogDebug("Process (PID: {pid}) on port {port} has already exited", listeningPid, port);
-                        return;
-                    }
-
-                    var processName = process.ProcessName.ToLowerInvariant();
-                    if (!processName.Contains(McpServerProcessName))
-                    {
-                        _logger.LogWarning(
-                            "Port {port} is occupied by a non-MCP process '{processName}' (PID: {pid}). " +
-                            "The MCP server may fail to start. Please free the port or change the port in settings.",
-                            port, process.ProcessName, listeningPid);
-                        return;
-                    }
-
-                    _logger.LogWarning("Killing orphaned MCP server process (PID: {pid}) occupying port {port}", listeningPid, port);
-                    process.Kill();
-
-                    if (!process.WaitForExit(3000))
-                        _logger.LogWarning("Orphaned MCP server process (PID: {pid}) did not exit within 3 seconds after kill", listeningPid);
-                    else
-                        _logger.LogDebug("Orphaned MCP server process (PID: {pid}) exited successfully", listeningPid);
-                }
-                catch (ArgumentException)
-                {
-                    _logger.LogDebug("Process (PID: {pid}) on port {port} no longer exists", listeningPid, port);
-                }
-                catch (InvalidOperationException)
-                {
-                    _logger.LogDebug("Process (PID: {pid}) on port {port} exited before it could be terminated", listeningPid, port);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug("Failed to kill orphaned process (PID: {pid}) on port {port}: {message}", listeningPid, port, ex.Message);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogDebug("Error in orphaned server process cleanup: {message}", ex.Message);
-            }
-        }
-
-        /// <summary>
-        /// Returns the PID of the process listening on the specified TCP port,
-        /// or -1 if no process is found or the lookup fails.
-        /// </summary>
         static int GetPidListeningOnPort(int port)
         {
             try

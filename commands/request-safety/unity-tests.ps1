@@ -29,7 +29,7 @@ Write-Host "Isolated Unity project: $project"
 $arguments = @('-batchmode', '-nographics', '-projectPath', ('"' + $project + '"'), '-runTests', '-testPlatform', 'EditMode',
     '-testFilter', 'RequestSafetyMainThreadTests', '-testResults', ('"' + (Join-Path $project 'results.xml') + '"'),
     '-logFile', ('"' + (Join-Path $project 'Editor.log') + '"'),
-    '--UNITY_MCP_KEEP_CONNECTED=false', '--UNITY_MCP_START_SERVER=false', '--UNITY_MCP_CONNECTION_MODE=local')
+    '--UNITY_MCP_KEEP_CONNECTED=false', '--UNITY_MCP_START_SERVER=false', '--UNITY_MCP_CONNECTION_MODE=Custom')
 $process = Start-Process -FilePath $UnityExe -ArgumentList $arguments -WindowStyle Hidden -PassThru
 # Bounded execution; stop only the exact isolated process this script created.
 $deadline = [DateTime]::UtcNow.AddMinutes(4)

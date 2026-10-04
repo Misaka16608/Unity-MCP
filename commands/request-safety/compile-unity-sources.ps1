@@ -28,11 +28,36 @@ foreach ($reference in $referenceProject.SelectNodes("//*[local-name()='ProjectR
     $references[$name] = $path
 }
 function Escape-Xml([string]$value) { [Security.SecurityElement]::Escape($value) }
+foreach ($name in 'Microsoft.CodeAnalysis', 'Microsoft.CodeAnalysis.CSharp', 'System.Collections.Immutable') {
+    $path = Join-Path $UnityProject "Assets/Plugins/NuGet/$name.dll"
+    if (!(Test-Path -LiteralPath $path)) { throw "Missing actual editor dependency: $path" }
+    $references[$name] = $path
+}
+foreach ($dll in Get-ChildItem -LiteralPath (Join-Path $UnityProject 'Assets/Plugins/NuGet') -Filter '*.dll') {
+    $references[$dll.BaseName] = $dll.FullName
+}
+$references['Extensions.Unity.PlayerPrefsEx'] = Join-Path $UnityProject 'Library/ScriptAssemblies/Extensions.Unity.PlayerPrefsEx.dll'
 $package = Join-Path $repoRoot 'Unity-MCP-Plugin/Packages/com.ivanmurzak.unity.mcp'
-foreach ($mode in 'Editor', 'Player') {
-    $defines = if ($mode -eq 'Editor') { 'UNITY_EDITOR;UNITY_2022_3' } else { 'UNITY_2022_3' }
+foreach ($mode in 'DependencyResolver', 'RuntimeEditor', 'Editor', 'Player') {
+    $defines = if ($mode -eq 'Player') { 'UNITY_2022_3' } else { $referenceProject.SelectSingleNode("//*[local-name()='DefineConstants']").InnerText }
     $sources = @('Runtime/Utils/QueuedExecution.cs', 'Runtime/Utils/DurableOperationStore.cs', "Runtime/Utils/MainThread.$mode.cs")
-    if ($mode -eq 'Editor') { $sources += @('Editor/Scripts/API/Tool/Operation.cs', 'Tests/Editor/RequestSafetyMainThreadTests.cs') }
+    if ($mode -eq 'DependencyResolver') {
+        $sources = @(Get-ChildItem -LiteralPath (Join-Path $package 'Editor/DependencyResolver') -Filter '*.cs' | ForEach-Object { 'Editor/DependencyResolver/' + $_.Name })
+        $references.Remove('com.IvanMurzak.Unity.MCP.DependencyResolver')
+        $references.Remove('com.IvanMurzak.Unity.MCP.Editor')
+    }
+    if ($mode -eq 'RuntimeEditor') {
+        $references.Remove('com.IvanMurzak.Unity.MCP.Runtime')
+        $sources = @(Get-ChildItem -LiteralPath (Join-Path $package 'Runtime') -Filter '*.cs' -Recurse | ForEach-Object { [IO.Path]::GetRelativePath($package, $_.FullName) })
+    }
+    if ($mode -eq 'Editor') {
+        $references['com.IvanMurzak.Unity.MCP.DependencyResolver'] = Join-Path $output 'bin/Release/netstandard2.1/UnitySourceCheck.DependencyResolver.dll'
+        $references.Remove('com.IvanMurzak.Unity.MCP.Editor')
+        $references['com.IvanMurzak.Unity.MCP.Runtime'] = Join-Path $output 'bin/Release/netstandard2.1/UnitySourceCheck.RuntimeEditor.dll'
+        $sources = @()
+        $sources += @(Get-ChildItem -LiteralPath (Join-Path $package 'Editor/Scripts') -Filter '*.cs' -Recurse | ForEach-Object { [IO.Path]::GetRelativePath($package, $_.FullName) })
+        $sources += @('Tests/Editor/RequestSafetyMainThreadTests.cs', 'Tests/Editor/Project/ServerVersionDecouplingTests.cs', 'Tests/Editor/McpServerChecksumTests.cs', 'Tests/Editor/McpServerPathOverrideTests.cs')
+    }
     $items = foreach ($source in $sources) { '<Compile Include="' + (Escape-Xml (Join-Path $package $source)) + '" />' }
     $items += foreach ($name in $references.Keys | Sort-Object) {
         '<Reference Include="' + (Escape-Xml $name) + '"><HintPath>' + (Escape-Xml $references[$name]) + '</HintPath></Reference>'

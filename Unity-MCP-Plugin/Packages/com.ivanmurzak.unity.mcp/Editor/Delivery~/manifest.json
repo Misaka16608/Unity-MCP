@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "pluginVersion": "0.93.3-request-safety.1",
+  "apiVersion": "2.0.0-request-safety.2",
+  "serverVersion": "9.2.9-request-safety.2",
+  "releaseBaseUrl": "https://github.com/Misaka16608/Unity-MCP/releases/download/request-safety-9.2.9-2",
+  "packages": [
+    {
+      "id": "com.IvanMurzak.McpPlugin",
+      "version": "8.6.0-request-safety.2",
+      "fileName": "com.IvanMurzak.McpPlugin.8.6.0-request-safety.2.nupkg",
+      "sha256": "19495eb9da8150f04dbe5b3b3b46b6f324625e7f77910225679a4debc36de235"
+    },
+    {
+      "id": "com.IvanMurzak.McpPlugin.Common",
+      "version": "8.6.0-request-safety.2",
+      "fileName": "com.IvanMurzak.McpPlugin.Common.8.6.0-request-safety.2.nupkg",
+      "sha256": "5572cedead6dc00f95525cd96759944571bc07789dc9b8cd3a0a513b1bc6cc73"
+    },
+    {
+      "id": "com.IvanMurzak.ReflectorNet",
+      "version": "5.4.1",
+      "fileName": "com.IvanMurzak.ReflectorNet.5.4.1.nupkg",
+      "sha256": "72b8dc5c6585f390718f0b8a86d2b923b5272a70da34f0b8cf331959e2a42526"
+    }
+  ],
+  "servers": [
+    {
+      "id": "win-x64",
+      "version": "9.2.9-request-safety.2",
+      "fileName": "gamedev-mcp-server-win-x64.zip",
+      "sha256": "e7c83dbb23dee8fb1397a3cd7de082529b6f66eb28aa8daaf55bf3211705a474",
+      "executableSha256": "fd727f1fc47e1a095ad56e93834ef4f158f0daada6788c49d18ae2973c0bdb21"
+    },
+    {
+      "id": "win-arm64",
+      "version": "9.2.9-request-safety.2",
+      "fileName": "gamedev-mcp-server-win-arm64.zip",
+      "sha256": "b7b1a4fcedaadcaf10417de75bcdc267cd47e6ea12b73d154127a2dbe1e8851c",
+      "executableSha256": "9d01b4d8328d7e9d488c84b2524ea577df390cfff39f848eef6aed0c87e9bcb6"
+    },
+    {
+      "id": "linux-x64",
+      "version": "9.2.9-request-safety.2",
+      "fileName": "gamedev-mcp-server-linux-x64.zip",
+      "sha256": "3181e3e3b8f3894ab5ad729576236c13900e8a1c59e0fa3b8ab5d90be72fe870",
+      "executableSha256": "99807758b134ad51f2d1359845dd31041b056ff9cc284e54e22af0b7b1c5cc77"
+    },
+    {
+      "id": "linux-arm64",
+      "version": "9.2.9-request-safety.2",
+      "fileName": "gamedev-mcp-server-linux-arm64.zip",
+      "sha256": "eb213732b896aca4f24778c30c3efc44b748578b13f2eef6f8b94664a04e4d54",
+      "executableSha256": "3423a19449aeb5182a9d0e6d708ca86b6101fc827e89166d6dbeabefa085efa7"
+    },
+    {
+      "id": "win-x86",
+      "version": "9.2.9-request-safety.2",
+      "fileName": "gamedev-mcp-server-win-x86.zip",
+      "sha256": "d42fcd8dcc41719733187dfe2b4be6e8e0299519aa69388a12f674be8dd291af",
+      "executableSha256": "a7960a1a059eda15061b7b6fa1921febb497de86ab8f151dc19410e4cd0cc17c"
+    },
+    {
+      "id": "osx-x64",
+      "version": "9.2.9-request-safety.2",
+      "fileName": "gamedev-mcp-server-osx-x64.zip",
+      "sha256": "c0a830c750df1592bbbd4e3e8fc1c751734d3e5b6841f4ce2f67a1e5720d708c",
+      "executableSha256": "70eccc9c360f58c44da569af94a3670b9ee6ff88f75e996e415a23d5401abd19"
+    },
+    {
+      "id": "osx-arm64",
+      "version": "9.2.9-request-safety.2",
+      "fileName": "gamedev-mcp-server-osx-arm64.zip",
+      "sha256": "03aeda7a6b80d3d0b706d8eef5fec20022c0f2c62e42fcea4086eb37f7cca52f",
+      "executableSha256": "24e2301eeb740138cbb73f08db46bda93bd888904307452411cbcbe5a7cfea5b"
+    }
+  ]
+}

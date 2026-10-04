@@ -49,6 +49,12 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
             NuGetCache.EnsureCacheDirectory();
             var cachedPath = NuGetCache.GetCachedPath(package);
 
+            // Unpublished paired dependencies travel with the UPM package. Validate
+            // before consulting a potentially stale same-version project cache.
+            var bundledPath = PackageDelivery.TryInstall(package);
+            if (bundledPath != null)
+                return bundledPath;
+
             if (File.Exists(cachedPath))
                 return cachedPath;
 

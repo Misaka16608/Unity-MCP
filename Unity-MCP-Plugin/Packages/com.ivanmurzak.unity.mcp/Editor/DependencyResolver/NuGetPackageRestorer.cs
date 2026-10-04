@@ -32,6 +32,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
     static class NuGetPackageRestorer
     {
         const string Tag = NuGetConfig.LogTag;
+        public static bool LastRestoreSucceeded { get; private set; }
 
         /// <summary>
         /// Performs a full package restore. Returns true if any packages were installed
@@ -40,6 +41,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
         public static bool Restore()
         {
             var anyChanged = false;
+            LastRestoreSucceeded = false;
+            PackageDeliveryStatus.Set("Installing plugin dependencies");
 
             try
             {
@@ -93,9 +96,11 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
                     Debug.Log($"{Tag} Package restore complete. Changes applied (installed and/or removed packages).");
                 else
                     Debug.Log($"{Tag} All packages up to date.");
+                LastRestoreSucceeded = true;
             }
             catch (Exception ex)
             {
+                PackageDeliveryStatus.Set("Dependency installation failed: " + ex.Message);
                 Debug.LogError($"{Tag} Package restore failed: {ex.Message}\n{ex.StackTrace}");
             }
 

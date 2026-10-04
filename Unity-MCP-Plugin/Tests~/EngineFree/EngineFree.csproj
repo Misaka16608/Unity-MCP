@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <RestoreAdditionalProjectSources>$(RestoreAdditionalProjectSources);$(MSBuildThisFileDirectory)../../Packages/com.ivanmurzak.unity.mcp/Editor/Delivery~</RestoreAdditionalProjectSources>
     <IsPackable>false</IsPackable>
     <RootNamespace>com.IvanMurzak.Unity.MCP.EngineFree.Tests</RootNamespace>
     <AssemblyName>Unity-MCP.EngineFree.Tests</AssemblyName>
@@ -37,7 +38,7 @@
          if they drift from NuGetConfig.Packages, so a missed bump cannot silently leave this suite
          testing yesterday's DLLs. McpPlugin is what makes this project a NuGet-mode consumer of the
          framework, which is also what lets a workspace-source override chain reach it. -->
-    <PackageReference Include="com.IvanMurzak.McpPlugin" Version="8.6.0-request-safety.1" />
+    <PackageReference Include="com.IvanMurzak.McpPlugin" Version="8.6.0-request-safety.2" />
     <PackageReference Include="com.IvanMurzak.ReflectorNet" Version="5.4.1" />
   </ItemGroup>
 
@@ -72,6 +73,7 @@
          and no widening of the shipped surface. -->
     <Compile Include="..\..\Packages\com.ivanmurzak.unity.mcp\Editor\DependencyResolver\NuGetConfig.cs" Link="Source\NuGetConfig.cs" />
     <Compile Include="..\..\Packages\com.ivanmurzak.unity.mcp\Editor\DependencyResolver\NuGetPackage.cs" Link="Source\NuGetPackage.cs" />
+    <Compile Include="..\..\Packages\com.ivanmurzak.unity.mcp\Editor\DependencyResolver\PairedReleaseManifest.cs" Link="Source\PairedReleaseManifest.cs" />
     <!-- Cache-path derivation only (Path.Combine over NuGetConfig.CachePath). The tests never call
          EnsureCacheDirectory — it writes to the process working directory. -->
     <Compile Include="..\..\Packages\com.ivanmurzak.unity.mcp\Editor\DependencyResolver\NuGetCache.cs" Link="Source\NuGetCache.cs" />

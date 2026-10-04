@@ -6,7 +6,7 @@ diff --git a/com.IvanMurzak.GameDev.MCP.Server.csproj b/com.IvanMurzak.GameDev.M
      <ToolCommandName>gamedev-mcp-server</ToolCommandName>
      <PackageId>com.IvanMurzak.GameDev.MCP.Server</PackageId>
 -    <Version>9.2.9</Version>
-+    <Version>9.2.9-request-safety.1</Version>
++    <Version>9.2.9-request-safety.2</Version>
      <Authors>Ivan Murzak</Authors>
      <Company>Ivan Murzak</Company>
      <Copyright>Copyright © 2026 Ivan Murzak</Copyright>
@@ -35,14 +35,14 @@ diff --git a/server.json b/server.json
      "source": "github"
    },
 -  "version": "9.2.9",
-+  "version": "9.2.9-request-safety.1",
++  "version": "9.2.9-request-safety.2",
    "packages": [
      {
        "registry_type": "oci",
        "registry_base_url": "https://docker.io",
        "identifier": "aigamedeveloper/mcp-server",
 -      "version": "9.2.9",
-+      "version": "9.2.9-request-safety.1",
++      "version": "9.2.9-request-safety.2",
        "transport": {
          "type": "stdio"
        },

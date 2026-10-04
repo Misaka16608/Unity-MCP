@@ -1,13 +1,13 @@
 {
   "packages": {
     "com.IvanMurzak.McpPlugin": {
-      "version": "8.6.0-request-safety.1",
+      "version": "8.6.0-request-safety.2",
       "dlls": [
         "McpPlugin.dll"
       ]
     },
     "com.IvanMurzak.McpPlugin.Common": {
-      "version": "8.6.0-request-safety.1",
+      "version": "8.6.0-request-safety.2",
       "dlls": [
         "McpPlugin.Common.dll"
       ]

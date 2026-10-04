@@ -225,6 +225,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.UI
         protected override void OnGUICreated(VisualElement root)
         {
             _disposables.Clear();
+            DeliveryStatusView.Attach(root);
 
             SetupSettingsSection(root);
             SetupConnectionSection(root);

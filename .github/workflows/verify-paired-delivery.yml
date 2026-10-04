@@ -1,0 +1,36 @@
+name: Verify paired native delivery
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'commands/request-safety/**'
+      - 'Unity-MCP-Plugin/Packages/com.ivanmurzak.unity.mcp/Editor/Delivery~/**'
+      - 'Unity-MCP-Plugin/Tests~/EngineFree/**'
+      - '.github/workflows/verify-paired-delivery.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+      - name: Verify pinned sources, repaired framework, bundled delivery and generation gate
+        shell: pwsh
+        run: ./commands/request-safety/build.ps1 -SkipPublish
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: paired-delivery-test-results
+          path: .local/request-safety/results/*.trx

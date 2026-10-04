@@ -34,3 +34,5 @@ __pycache__/
 
 # Isolated, reproducible request-safety dependency builds (see commands/request-safety).
 .local/request-safety/
+commands/request-safety/Smoke/bin/
+commands/request-safety/Smoke/obj/

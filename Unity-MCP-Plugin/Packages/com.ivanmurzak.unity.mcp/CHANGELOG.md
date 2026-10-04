@@ -4,6 +4,14 @@
 
 ### Added
 
+- **Paired native delivery candidate `0.93.3-request-safety.1`.** Bundles the repaired
+  `8.6.0-request-safety.2` framework and ReflectorNet, pins native server archive and
+  executable hashes in the package, displays installation stages, waits for accepted
+  tool/durable executions before a server switch, and preserves other servers on
+  occupied ports. The Windows candidate tarball includes its native server; missing
+  standard dependencies still restore through NuGet. Native Git downloads require
+  publication of the paired candidate release.
+
 - **`UNITY_MCP_SERVER_PATH` — dev/CI override for the launched MCP server binary.** When the
   variable resolves to a file that exists, the Editor launches that binary instead of the
   `GameDev-MCP-Server` release pinned by `McpServerManager.ServerVersion`, and skips both the

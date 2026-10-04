@@ -14,39 +14,30 @@ From the repository root:
 pwsh -NoProfile -File commands/request-safety/build.ps1 -SeedToolProject
 ```
 
-The script downloads official source archives at the commits in `sources.json`,
-checks original file hashes, applies the tracked patches, checks patched hashes,
-builds the paired packages, runs 14 safety tests, 118 existing server regression
-tests and 61 EngineFree tests, checks the dependency generation gate, and builds
-the local Windows server. `-SkipPublish` skips generating the server executable;
-`publish` here is a local .NET build command, with no upload or deployment.
+The script downloads official sources at the commits in `sources.json`, verifies
+base and patched file hashes, builds the repaired framework, runs the 14 safety,
+118 routing/auth regressions and 76 EngineFree tests, checks dependency generation 8,
+and optionally builds a framework-dependent local Windows server. `-SkipPublish`
+skips that local server build. Nothing is uploaded or deployed.
 
-All scratch outputs are under `.local/request-safety/`:
+The current framework is `8.6.0-request-safety.2`, API
+`2.0.0-request-safety.2`, native host `9.2.9-request-safety.2`. Three matching
+NuGet packages are bundled under the Unity package's `Editor/Delivery~`; normal
+consumer restoration needs no public release of the repaired NuGet packages.
+`-SeedToolProject` updates only this repository's tool-project dependency drops.
 
-- `deps/`: prepared upstream sources. Existing changed source is rejected instead
-  of overwritten. Preserve it before preparing a different patch revision.
-- `feed/`: unpublished `8.6.0-request-safety.1` Common/plugin packages.
-- `nuget/<source-manifest-digest>/`: isolated restore cache for the exact patch.
-- `publish/gamedev-mcp-server.exe`: host `9.2.9-request-safety.1`, framework dependent.
-- `results/`: TRX results and optional Unity source compilation log.
+Use `-Delivery` to also build seven self-contained native server archives,
+seal their hashes into the Unity package, and create an installable Windows UPM
+tarball. See [paired delivery and installation](DELIVERY.md) for candidate artifacts,
+actual connection verification, maintenance behavior and the separate release entry.
+Native Git downloads use that exact candidate's manifest URL; this release must be
+published before its delivery branch is integrated into `main`.
 
-`-SeedToolProject` updates only this repository's `Unity-MCP-Plugin` DLL drops,
-installed manifest and NuGet cache. It never connects to an editor. These paired
-DLLs are tracked because the tool project already tracks its dependency drops.
-The patched API is `2.0.0-request-safety.1`; its handshake rejects the released
-server's API. Before starting a future isolated editor/server, explicitly set
-`UNITY_MCP_SERVER_PATH` to the absolute `publish/gamedev-mcp-server.exe` path.
-The released download pin is retained; no nonexistent GitHub release is assumed.
-
-The prerelease packages are **local only**. The existing release and chain CI
-must be adapted to build this patch or consume an approved matching dependency
-release before publishing it. Do not substitute released 8.6.0 packages or an
-unpatched chain feed: the new source requires the repaired execution APIs.
-
-On this Windows sandbox, the build uses a bounded-purpose loopback NuGet proxy
-(`127.0.0.1:18763`) whose upstream GETs use Node's verified HTTPS. The HTTP exception
-in `NuGet.Config` applies only to that local hop. Certificates are never disabled;
-package bytes are forwarded unchanged. The script stops the proxy it owns.
+Scratch source, feed, cache, publish and test outputs stay under
+`.local/request-safety/`. The Windows build's loopback NuGet proxy
+(127.0.0.1:18763) uses Node's verified HTTPS upstream and stops only its own proxy.
+Certificates are never disabled. Changed prepared upstream sources are refused
+rather than overwritten.
 
 ## Execution contract
 
@@ -111,7 +102,8 @@ not as a fabricated completion. No completion notification is promised.
 
 ## Unity checks
 
-Compile the changed Editor/Player source and new EditMode tests against real
+Compile the resolver, full Runtime/Editor sources, Player dispatcher and changed
+EditMode tests against real
 installed Unity and dependency DLLs, without launching an editor:
 
 ```powershell

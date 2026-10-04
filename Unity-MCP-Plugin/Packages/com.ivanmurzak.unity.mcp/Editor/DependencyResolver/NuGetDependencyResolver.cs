@@ -65,6 +65,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
             if (IsCi())
             {
                 RecompileGate.EnsureReadyDefine();
+                PackageDeliveryStatus.Set("Plugin dependencies ready");
                 return;
             }
 
@@ -113,6 +114,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
             catch (Exception ex)
             {
                 // Same rationale as ResolveOnce: do NOT set UNITY_MCP_READY on a failed restore.
+                PackageDeliveryStatus.Set("Dependency installation failed: " + ex.Message);
+                RecompileGate.RemoveReadyDefine();
                 Debug.LogError($"{Tag} Restore from UPM event failed: {ex}");
             }
             finally
@@ -128,19 +131,24 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
         /// </summary>
         static void RunRestoreAndRefresh()
         {
+            PackageDelivery.Prepare();
             if (NuGetPackageRestorer.AllPackagesInstalled())
             {
                 NuGetPluginConfigurator.ConfigureAll();
                 RecompileGate.EnsureReadyDefine();
+                PackageDeliveryStatus.Set("Plugin dependencies ready");
                 return;
             }
 
             Debug.Log($"{Tag} Restoring NuGet packages...");
             var changed = NuGetPackageRestorer.Restore();
+            if (!NuGetPackageRestorer.LastRestoreSucceeded || !NuGetPackageRestorer.AllPackagesInstalled())
+                throw new InvalidOperationException("Plugin dependencies are incomplete; the plugin will remain disabled. See the dependency restore error.");
 
             NuGetPluginConfigurator.ConfigureAll();
 
             RecompileGate.EnsureReadyDefine();
+            PackageDeliveryStatus.Set(changed ? "Dependencies installed; compiling plugin" : "Plugin dependencies ready");
 
             if (changed)
             {
@@ -158,6 +166,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
             }
             catch (Exception ex)
             {
+                PackageDeliveryStatus.Set("Dependency installation failed: " + ex.Message);
+                RecompileGate.RemoveReadyDefine();
                 // Do NOT set UNITY_MCP_READY here: if restore/configuration failed, the DLL
                 // layout is unknown/inconsistent, and letting main-plugin assemblies compile
                 // against a partial/mismatched set (via defineConstraints) produces hard-to-

@@ -34,8 +34,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests
             Assert.AreNotEqual(UnityMcpPlugin.Version, McpServerManager.ServerVersion,
                 "Plugin version and pinned server version are expected to diverge (plugin 0.x, server 8.x).");
 
-            StringAssert.Contains($"/releases/download/v{McpServerManager.ServerVersion}/", url,
-                "Download URL must pin the v-prefixed ServerVersion tag.");
+            Assert.AreEqual(PairedServerDelivery.Release.ServerUrl(McpServerManager.PlatformName), url);
             StringAssert.DoesNotContain(UnityMcpPlugin.Version, url,
                 "Download URL must NOT be derived from the plugin version.");
         }
@@ -45,8 +44,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests
         {
             var url = McpServerManager.ExecutableZipUrl;
 
-            StringAssert.StartsWith("https://github.com/IvanMurzak/GameDev-MCP-Server/releases/download/", url,
-                "Server binaries are released from the shared GameDev-MCP-Server repo, not Unity-MCP.");
+            StringAssert.StartsWith(PairedServerDelivery.Release.releaseBaseUrl + "/", url);
             StringAssert.Contains($"/gamedev-mcp-server-{McpServerManager.PlatformName}.zip", url,
                 "Release asset name is gamedev-mcp-server-<rid>.zip.");
         }

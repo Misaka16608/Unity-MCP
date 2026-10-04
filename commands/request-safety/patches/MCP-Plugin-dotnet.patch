@@ -6,7 +6,7 @@ diff --git a/McpPlugin.Common/McpPlugin.Common.csproj b/McpPlugin.Common/McpPlug
      <IsPackable>true</IsPackable>
      <PackageId>com.IvanMurzak.McpPlugin.Common</PackageId>
 -    <Version>8.6.0</Version>
-+    <Version>8.6.0-request-safety.1</Version>
++    <Version>8.6.0-request-safety.2</Version>
      <Authors>Ivan Murzak</Authors>
      <Company>Ivan Murzak</Company>
      <Copyright>Copyright © Ivan Murzak 2025</Copyright>
@@ -19,8 +19,8 @@ diff --git a/McpPlugin.Common/src/Utils/Consts.cs b/McpPlugin.Common/src/Utils/C
      {
 -        public const string ApiVersion = "2.0.0";
 -        public const string PluginVersion = "8.6.0";
-+        public const string ApiVersion = "2.0.0-request-safety.1";
-+        public const string PluginVersion = "8.6.0-request-safety.1";
++        public const string ApiVersion = "2.0.0-request-safety.2";
++        public const string PluginVersion = "8.6.0-request-safety.2";
  
          public static class Guid
          {
@@ -41,7 +41,7 @@ diff --git a/McpPlugin.Common/src/Execution/ExecutionRegistry.cs b/McpPlugin.Com
 new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Common/src/Execution/ExecutionRegistry.cs
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,121 @@
 +/*
 +┌────────────────────────────────────────────────────────────────────────┐
 +│  Author: Ivan Murzak (https://github.com/IvanMurzak)                   │
@@ -54,6 +54,7 @@ new file mode 100644
 +#nullable enable
 +using System;
 +using System.Collections.Generic;
++using System.Linq;
 +using System.Threading;
 +using System.Threading.Tasks;
 +
@@ -67,6 +68,27 @@ new file mode 100644
 +        private readonly Dictionary<string, Entry> _entries = new(StringComparer.Ordinal);
 +        private readonly int _capacity;
 +        private bool _disposed;
++        private int _maintenance;
++        public int ActiveExecutionCount { get { lock (_gate) return _entries.Values.Count(e => e.Started && !e.Completion.Task.IsCompleted); } }
++        public IDisposable BeginMaintenance()
++        {
++            lock (_gate)
++            {
++                if (_disposed) throw new ObjectDisposedException(nameof(ExecutionRegistry<T>));
++                _maintenance++;
++                return new MaintenanceLease(this);
++            }
++        }
++        private sealed class MaintenanceLease : IDisposable
++        {
++            private ExecutionRegistry<T>? _owner;
++            public MaintenanceLease(ExecutionRegistry<T> owner) { _owner = owner; }
++            public void Dispose()
++            {
++                var owner = Interlocked.Exchange(ref _owner, null);
++                if (owner != null) lock (owner._gate) owner._maintenance--;
++            }
++        }
 +        public ExecutionRegistry(int capacity = 10000) { _capacity = capacity; }
 +        private sealed class Entry
 +        {
@@ -75,7 +97,7 @@ new file mode 100644
 +            public readonly TaskCompletionSource<T> Completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 +            public bool Started;
 +        }
-+        public Task<T> Run(string scope, string id, string fingerprint, Func<CancellationToken, Task<T>> execute)
++        public Task<T> Run(string scope, string id, string fingerprint, Func<CancellationToken, Task<T>> execute, bool allowDuringMaintenance = false)
 +        {
 +            if (string.IsNullOrWhiteSpace(scope) || string.IsNullOrWhiteSpace(id))
 +                throw new ArgumentException("Execution scope and request ID are required.");
@@ -86,6 +108,8 @@ new file mode 100644
 +                var key = Key(scope, id);
 +                if (!_entries.TryGetValue(key, out entry!))
 +                {
++                    if (_maintenance != 0 && !allowDuringMaintenance)
++                        throw new ExecutionMaintenanceException();
 +                    if (_entries.Count >= _capacity) throw new InvalidOperationException("Execution ledger is full; refusing to discard deduplication history.");
 +                    _entries.Add(key, entry = new Entry());
 +                }
@@ -143,7 +167,7 @@ diff --git a/McpPlugin.Common/src/Execution/ToolExecutionContext.cs b/McpPlugin.
 new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Common/src/Execution/ToolExecutionContext.cs
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,42 @@
 +/*
 +┌────────────────────────────────────────────────────────────────────────┐
 +│  Author: Ivan Murzak (https://github.com/IvanMurzak)                   │
@@ -168,13 +192,15 @@ new file mode 100644
 +        public CancellationToken CancellationToken { get; }
 +        public DateTimeOffset? DeadlineUtc { get; }
 +        public Action? OnMainThreadStarted { get; }
++        public bool AllowDuringMaintenance { get; }
 +        public void MarkMainThreadStarted() => OnMainThreadStarted?.Invoke();
-+        public ToolExecutionContext(string identityScope, CancellationToken cancellationToken, DateTimeOffset? deadlineUtc, Action? onMainThreadStarted = null)
++        public ToolExecutionContext(string identityScope, CancellationToken cancellationToken, DateTimeOffset? deadlineUtc, Action? onMainThreadStarted = null, bool allowDuringMaintenance = false)
 +        {
 +            IdentityScope = identityScope;
 +            CancellationToken = cancellationToken;
 +            DeadlineUtc = deadlineUtc;
 +            OnMainThreadStarted = onMainThreadStarted;
++            AllowDuringMaintenance = allowDuringMaintenance;
 +        }
 +        public void ThrowIfExpired()
 +        {
@@ -182,6 +208,34 @@ new file mode 100644
 +            if (DeadlineUtc.HasValue && DateTimeOffset.UtcNow >= DeadlineUtc.Value)
 +                throw new OperationCanceledException("Request expired before engine execution.");
 +        }
++    }
++}
+diff --git a/McpPlugin.Common/src/Execution/IExecutionActivity.cs b/McpPlugin.Common/src/Execution/IExecutionActivity.cs
+new file mode 100644
+--- /dev/null
++++ b/McpPlugin.Common/src/Execution/IExecutionActivity.cs
+@@ -0,0 +1,23 @@
++/*
++┌────────────────────────────────────────────────────────────────────────┐
++│  Author: Ivan Murzak (https://github.com/IvanMurzak)                   │
++│  Repository: GitHub (https://github.com/IvanMurzak/MCP-Plugin-dotnet)  │
++│  Copyright (c) 2025 Ivan Murzak                                        │
++│  Licensed under the Apache License, Version 2.0.                       │
++│  See the LICENSE file in the project root for more information.        │
++└────────────────────────────────────────────────────────────────────────┘
++*/
++#nullable enable
++using System;
++namespace com.IvanMurzak.McpPlugin.Common.Execution
++{
++    public interface IExecutionActivity
++    {
++        int ActiveExecutionCount { get; }
++        IDisposable BeginMaintenance();
++    }
++    public sealed class ExecutionMaintenanceException : InvalidOperationException
++    {
++        public ExecutionMaintenanceException() : base("Server upgrade in progress. This request was not admitted; try again after reconnecting.") { }
 +    }
 +}
 diff --git a/McpPlugin.Common/src/Hub/Client/ICancellableToolHub.cs b/McpPlugin.Common/src/Hub/Client/ICancellableToolHub.cs
@@ -226,7 +280,7 @@ diff --git a/McpPlugin/McpPlugin.csproj b/McpPlugin/McpPlugin.csproj
      <IsPackable>true</IsPackable>
      <PackageId>com.IvanMurzak.McpPlugin</PackageId>
 -    <Version>8.6.0</Version>
-+    <Version>8.6.0-request-safety.1</Version>
++    <Version>8.6.0-request-safety.2</Version>
      <Authors>Ivan Murzak</Authors>
      <Company>Ivan Murzak</Company>
      <Copyright>Copyright © Ivan Murzak 2025</Copyright>
@@ -238,20 +292,22 @@ diff --git a/McpPlugin/src/Mcp/McpToolManager.cs b/McpPlugin/src/Mcp/McpToolMana
  namespace com.IvanMurzak.McpPlugin
  {
 -    public class McpToolManager : IToolManager
-+    public class McpToolManager : IToolManager, com.IvanMurzak.McpPlugin.Common.Hub.Client.ICancellableToolHub
++    public class McpToolManager : IToolManager, com.IvanMurzak.McpPlugin.Common.Hub.Client.ICancellableToolHub, com.IvanMurzak.McpPlugin.Common.Execution.IExecutionActivity
      {
          protected readonly ILogger _logger;
          protected readonly Reflector _reflector;
-@@ -34,6 +34,8 @@
+@@ -34,6 +34,10 @@
          private ulong toolCallsCount = 0;
  
          readonly ToolRunnerCollection _tools;
 +        readonly ToolRequestExecutor _executions = new();
++        public int ActiveExecutionCount => _executions.ActiveExecutionCount;
++        public IDisposable BeginMaintenance() => _executions.BeginMaintenance();
 +        public void CancelCallTool(RequestCallTool data) => _executions.Cancel(data);
          readonly Subject<Unit> _onToolsUpdated = new();
  
          public Reflector Reflector => _reflector;
-@@ -131,7 +133,10 @@
+@@ -131,7 +135,10 @@
          }
  
          public Task<ResponseData<ResponseCallTool>> RunCallTool(RequestCallTool data) => RunCallTool(data, default);
@@ -263,7 +319,7 @@ diff --git a/McpPlugin/src/Mcp/McpToolManager.cs b/McpPlugin/src/Mcp/McpToolMana
          {
              Interlocked.Increment(ref Unsafe.As<ulong, long>(ref toolCallsCount));
              if (data == null)
-@@ -243,6 +248,7 @@
+@@ -243,6 +250,7 @@
  
          public void Dispose()
          {
@@ -275,7 +331,7 @@ diff --git a/McpPlugin/src/Mcp/ToolRequestExecutor.cs b/McpPlugin/src/Mcp/ToolRe
 new file mode 100644
 --- /dev/null
 +++ b/McpPlugin/src/Mcp/ToolRequestExecutor.cs
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,64 @@
 +/*
 +┌────────────────────────────────────────────────────────────────────────┐
 +│  Author: Ivan Murzak (https://github.com/IvanMurzak)                   │
@@ -298,6 +354,8 @@ new file mode 100644
 +    {
 +        readonly com.IvanMurzak.McpPlugin.Common.Execution.ExecutionRegistry<ResponseData<ResponseCallTool>> _executions = new();
 +        readonly string _localScope = Guid.NewGuid().ToString("N");
++        public int ActiveExecutionCount => _executions.ActiveExecutionCount;
++        public IDisposable BeginMaintenance() => _executions.BeginMaintenance();
 +        public void Cancel(RequestCallTool data) => _executions.Cancel(
 +            string.IsNullOrEmpty(data.ExecutionScope) ? _localScope : data.ExecutionScope, data.RequestID);
 +        public async Task<ResponseData<ResponseCallTool>> Run(RequestCallTool data, CancellationToken cancellationToken, Func<RequestCallTool, CancellationToken, Task<ResponseData<ResponseCallTool>>> execute)
@@ -319,7 +377,11 @@ new file mode 100644
 +                        return await execute(data, token);
 +                    }
 +                    finally { com.IvanMurzak.McpPlugin.Common.Execution.ToolExecutionContext.Current = previous; }
-+                });
++                }, allowDuringMaintenance: com.IvanMurzak.McpPlugin.Common.Execution.ToolExecutionContext.Current?.AllowDuringMaintenance == true || data.Name == "tool-operation-status" || data.Name == "tool-operation-cancel");
++            }
++            catch (com.IvanMurzak.McpPlugin.Common.Execution.ExecutionMaintenanceException ex)
++            {
++                return ResponseData<ResponseCallTool>.Error(data.RequestID, ex.Message, ResponseErrorKind.Unavailable);
 +            }
 +            catch (OperationCanceledException)
 +            {
@@ -337,22 +399,24 @@ new file mode 100644
 diff --git a/McpPlugin/src/Mcp/McpSystemToolManager.cs b/McpPlugin/src/Mcp/McpSystemToolManager.cs
 --- a/McpPlugin/src/Mcp/McpSystemToolManager.cs
 +++ b/McpPlugin/src/Mcp/McpSystemToolManager.cs
-@@ -32,10 +32,13 @@
+@@ -32,10 +32,15 @@
      /// System tools are discovered via <see cref="AiToolAttribute"/> with
      /// <see cref="AiToolAttribute.ToolType"/> set to <see cref="McpToolType.System"/>.
      /// </summary>
 -    public class McpSystemToolManager : ISystemToolManager
-+    public class McpSystemToolManager : ISystemToolManager, IDisposable
++    public class McpSystemToolManager : ISystemToolManager, IDisposable, com.IvanMurzak.McpPlugin.Common.Execution.IExecutionActivity
      {
          readonly ILogger _logger;
          readonly SystemToolRunnerCollection _tools;
 +        readonly ToolRequestExecutor _executions = new();
++        public int ActiveExecutionCount => _executions.ActiveExecutionCount;
++        public IDisposable BeginMaintenance() => _executions.BeginMaintenance();
 +        public void CancelCallTool(RequestCallTool request) => _executions.Cancel(request);
 +        public void Dispose() => _executions.Dispose();
  
          public McpSystemToolManager(ILogger<McpSystemToolManager> logger, SystemToolRunnerCollection tools)
          {
-@@ -62,7 +65,10 @@
+@@ -62,7 +67,10 @@
              return _tools.ContainsKey(name);
          }
  
@@ -402,7 +466,7 @@ diff --git a/McpPlugin.Server/McpPlugin.Server.csproj b/McpPlugin.Server/McpPlug
      <IsPackable>true</IsPackable>
      <PackageId>com.IvanMurzak.McpPlugin.Server</PackageId>
 -    <Version>8.6.0</Version>
-+    <Version>8.6.0-request-safety.1</Version>
++    <Version>8.6.0-request-safety.2</Version>
      <Authors>Ivan Murzak</Authors>
      <Company>Ivan Murzak</Company>
      <Copyright>Copyright © Ivan Murzak 2025</Copyright>
