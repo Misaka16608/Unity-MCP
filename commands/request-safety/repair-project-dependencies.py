@@ -1,4 +1,4 @@
-"""Repair McpPlugin, Common and ReflectorNet in explicitly selected Unity projects.
+"""Repair McpPlugin, Common, ReflectorNet and RQL in explicitly selected Unity projects.
 
 Defaults to a read-only plan. --apply backs up changed files under .local first.
 Existing PluginImporter metadata and unrelated manifest entries are preserved.
@@ -26,7 +26,7 @@ def main():
     installed = json.loads((source / ".nuget-installed.json").read_text())["packages"]
     source_packages = {name: installed[name] for name in (
         "com.IvanMurzak.McpPlugin.Common", "com.IvanMurzak.McpPlugin",
-        "com.IvanMurzak.ReflectorNet",
+        "com.IvanMurzak.ReflectorNet", "com.IvanMurzak.Rql",
     )}
     expected = {}
     for entry in source_packages.values():

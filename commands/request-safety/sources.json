@@ -1,22 +1,22 @@
 {
-  "packageVersion": "8.6.0-request-safety.1",
-  "apiVersion": "2.0.0-request-safety.1",
-  "serverVersion": "9.2.9-request-safety.1",
+  "packageVersion": "8.8.0-request-safety.3",
+  "apiVersion": "2.0.0-request-safety.3",
+  "serverVersion": "9.2.11-request-safety.3",
   "sources": [
     {
       "repo": "MCP-Plugin-dotnet",
-      "commit": "94ccb955bf95adc3499a3925491946e14367d551",
+      "commit": "de666f4f8946d9702cf4bb59d5b0ff84c8d95990",
       "patch": "patches/MCP-Plugin-dotnet.patch",
       "files": [
         {
           "path": "McpPlugin.Common/McpPlugin.Common.csproj",
-          "baseSha256": "b4816cd200e77274ff183c01689fb8721fd4508dde5c9baa3adc82c6f89ccb32",
-          "patchedSha256": "b88bc3d0cfe2461c7f77669b3ec40294cf63cd19e6bf9e0bfa34260a74d99389"
+          "baseSha256": "a661818e74cf0b26bf6d48834c8336eed85255d4f3d4237940c7ab402930ff89",
+          "patchedSha256": "e3604426ab8ec79a882841bb71244d0c7882cd66a256685b99ea55d2c407e0d1"
         },
         {
           "path": "McpPlugin.Common/src/Utils/Consts.cs",
-          "baseSha256": "9e11127884ac9f0cfcdba4b5f6fae48d1faf43f8cedc36dd60c444470742d9b3",
-          "patchedSha256": "fbef659fa4d792d2b784457a98a5644df05ff34f2e5ec14f204b90ed811bbf4e"
+          "baseSha256": "3ffca6678d246bc17c5ce3d5c7d13a30dee9a258ad7505ef556e555fe0d411d4",
+          "patchedSha256": "4ff5c29c65cb10ec4feadfe7b5ea82a73e20c179fb8291d5a2339ef92c327403"
         },
         {
           "path": "McpPlugin.Common/src/Data/Request/Tool/Call/RequestCallTool.cs",
@@ -40,13 +40,13 @@
         },
         {
           "path": "McpPlugin/McpPlugin.csproj",
-          "baseSha256": "3579fe3ed099a2e64bd2fd9c150a9a2533ca47c52d51624726377c8b55f147e5",
-          "patchedSha256": "e3a96f49092811eb79558654c8dc2cfdd4c1e6e5a937e02e4fbae9deaa1c0f89"
+          "baseSha256": "40973f24d9693f8552ed381fcf46ccb053f3d93ecb9ac08f7272c396f020ef4f",
+          "patchedSha256": "2cf54649c3dde73f24e18c6e8c031b990b78232924a545ad89eae8afce04cd0d"
         },
         {
           "path": "McpPlugin/src/Mcp/McpToolManager.cs",
-          "baseSha256": "b4bb0337b5e01fb0a2a30f38d421166a373f403d4e58a5bc3df805618f2cf41b",
-          "patchedSha256": "53ed7a34423aaa476a61162779feb1dc9f22146862e380b8bcde5e3c171a805d"
+          "baseSha256": "2da95eb9e53f5eb8139c6625682db22728cb99f0aef9da8f7e12e7e80ec256b6",
+          "patchedSha256": "024b569c6e798de84ecb944f92e680e93bcdf5e0563d9d711b1bb9a836ece491"
         },
         {
           "path": "McpPlugin/src/Mcp/ToolRequestExecutor.cs",
@@ -60,8 +60,8 @@
         },
         {
           "path": "McpPlugin/src/Mcp/Tool/RunTool.cs",
-          "baseSha256": "46e004b973ea4daaf714dd12983633c33ec9d3a77fd6becbea5a6d97e69fb191",
-          "patchedSha256": "dbb9e3502f5b947f2e813c5a6ebaf530ca3192e8ca3b66c793f19602da33d6f6"
+          "baseSha256": "ebe56136b6c7d5993970f6297b02380386219d2cd5ee6e23fe77da43b739790f",
+          "patchedSha256": "e953abc7f71a9b9abd3ac18aecb80c674c7565d16c403b316a94a26e6d713d76"
         },
         {
           "path": "McpPlugin/src/McpPlugin/Network/Client/McpManagerClientHub.cs",
@@ -70,13 +70,13 @@
         },
         {
           "path": "McpPlugin.Server/McpPlugin.Server.csproj",
-          "baseSha256": "2c1c2c029379d1e487e5a0436620a28cbb2ec7a217c8cc221837974d58e6e4af",
-          "patchedSha256": "478eefc2df4b14639794b606ec2ab706250e889339cd9b80273002dac5db5d61"
+          "baseSha256": "e7b15711e4d154fa65e70d4a10f06a9d6f7e64493d72ff2ca7ab9641b25866ef",
+          "patchedSha256": "420fe4fce74da211259dc4216777981507f5df8fb89884456fe8624e14d295ce"
         },
         {
           "path": "McpPlugin.Server/src/Client/ClientUtils.cs",
-          "baseSha256": "14c94141ea25ea56a533450fd46a988194904b4e1adea8894d6f192909af424a",
-          "patchedSha256": "8525467da6b940108ae41a8f74d81034bc1ee6689694839f0110f3956b296315"
+          "baseSha256": "973f89d788b082957b2c5192a0270a778b0889e94096b3a77cf849d1efcdc7ca",
+          "patchedSha256": "832fa607a6cfffc021c17a3b0e6bf5b5d8ebc5e394b93d75d7e8e61f30d17035"
         },
         {
           "path": "McpPlugin.Server/src/Client/RemoteToolRunner.cs",
@@ -90,13 +90,8 @@
         },
         {
           "path": "McpPlugin.Server/src/Client/RequestTrackingService.cs",
-          "baseSha256": "4c73a684e22f8ebbcca09c91d05d057852064f5fefa87e90794700fb06162a76",
-          "patchedSha256": "75f22038c0b2495c85632933d96a05d5c69ccc7c619d1fc015fd7979ff514930"
-        },
-        {
-          "path": "McpPlugin.Server/src/Extension/ExtensionsTask.cs",
-          "baseSha256": "c171a3afd5ce723863d5329ecdad377c6b71ce61c668e841012481eb2e962669",
-          "patchedSha256": "2f928751b809caf27fc0b6ea4ccc9dde2d201690f89bc386bc6d57674b545653"
+          "baseSha256": "37f3e916f6c0a5a49e9f5da30337253935a8a4290e007fa82612d7d116f480ee",
+          "patchedSha256": "5e0c3cc7ed8f428809dbb4c76144deee413ac839a4d483f22d064b049793b975"
         },
         {
           "path": "McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs",
@@ -111,7 +106,7 @@
         {
           "path": "McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs",
           "baseSha256": null,
-          "patchedSha256": "13a3c58882a04199ef24c5d9428b7c78dfab15e6c98a00514ba150f4ed69b13c"
+          "patchedSha256": "f16bb5c87d362fe16e096261dc2a883d1b894fd9012c5109df6a04117050ea7b"
         },
         {
           "path": "McpPlugin.Server.Tests/RequestExecutionTransportTests.cs",
@@ -122,18 +117,18 @@
     },
     {
       "repo": "GameDev-MCP-Server",
-      "commit": "9bf8483789fd3d6c32d228da392126f16081022e",
+      "commit": "983ce951e562222fe2cbfbcd9e4434b33a114be7",
       "patch": "patches/GameDev-MCP-Server.patch",
       "files": [
         {
           "path": "com.IvanMurzak.GameDev.MCP.Server.csproj",
-          "baseSha256": "1b0482c5c0bd40dde4a80a6c83e486786730bc19c7af5b65d8ff647497f21863",
-          "patchedSha256": "7f96a104b0f2b481f50c90237af2cf1656b0c39faa7c2eed8e97b284a6e2d1cf"
+          "baseSha256": "e8fd03fc292628a346565372f64b01e09be5648792eace53435e08e120ebcd1a",
+          "patchedSha256": "9281af1acaf1279b3a2a06e188507ba644770e6bb0730cf7339859b3c3cfb318"
         },
         {
           "path": "server.json",
-          "baseSha256": "328d9c287b4f6ddedcf0e863b8c42e1226a9bbcccfba219fbd192a23a3d6bb7c",
-          "patchedSha256": "1551525a68d0c2279dc6391a6390b772f2e2e3bbd74c0bc4778e5996b8dd181b"
+          "baseSha256": "cb7c2263e9155d4babd50900169dbfa8c133fc1c39ff274376b8dcb58a8f4d37",
+          "patchedSha256": "b0ec45f9c9b9bf5bc213fa40b9daabcd6db94b24d545377f95263e75774072a6"
         }
       ]
     }

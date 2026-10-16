@@ -5,8 +5,8 @@ diff --git a/McpPlugin.Common/McpPlugin.Common.csproj b/McpPlugin.Common/McpPlug
      <!-- NuGet Package Information -->
      <IsPackable>true</IsPackable>
      <PackageId>com.IvanMurzak.McpPlugin.Common</PackageId>
--    <Version>8.6.0</Version>
-+    <Version>8.6.0-request-safety.1</Version>
+-    <Version>8.8.0</Version>
++    <Version>8.8.0-request-safety.3</Version>
      <Authors>Ivan Murzak</Authors>
      <Company>Ivan Murzak</Company>
      <Copyright>Copyright © Ivan Murzak 2025</Copyright>
@@ -18,9 +18,9 @@ diff --git a/McpPlugin.Common/src/Utils/Consts.cs b/McpPlugin.Common/src/Utils/C
      public static partial class Consts
      {
 -        public const string ApiVersion = "2.0.0";
--        public const string PluginVersion = "8.6.0";
-+        public const string ApiVersion = "2.0.0-request-safety.1";
-+        public const string PluginVersion = "8.6.0-request-safety.1";
+-        public const string PluginVersion = "8.8.0";
++        public const string ApiVersion = "2.0.0-request-safety.3";
++        public const string PluginVersion = "8.8.0-request-safety.3";
  
          public static class Guid
          {
@@ -225,8 +225,8 @@ diff --git a/McpPlugin/McpPlugin.csproj b/McpPlugin/McpPlugin.csproj
      <!-- NuGet Package Information -->
      <IsPackable>true</IsPackable>
      <PackageId>com.IvanMurzak.McpPlugin</PackageId>
--    <Version>8.6.0</Version>
-+    <Version>8.6.0-request-safety.1</Version>
+-    <Version>8.8.0</Version>
++    <Version>8.8.0-request-safety.3</Version>
      <Authors>Ivan Murzak</Authors>
      <Company>Ivan Murzak</Company>
      <Copyright>Copyright © Ivan Murzak 2025</Copyright>
@@ -251,7 +251,7 @@ diff --git a/McpPlugin/src/Mcp/McpToolManager.cs b/McpPlugin/src/Mcp/McpToolMana
          readonly Subject<Unit> _onToolsUpdated = new();
  
          public Reflector Reflector => _reflector;
-@@ -131,7 +133,10 @@
+@@ -152,7 +154,10 @@
          }
  
          public Task<ResponseData<ResponseCallTool>> RunCallTool(RequestCallTool data) => RunCallTool(data, default);
@@ -263,7 +263,7 @@ diff --git a/McpPlugin/src/Mcp/McpToolManager.cs b/McpPlugin/src/Mcp/McpToolMana
          {
              Interlocked.Increment(ref Unsafe.As<ulong, long>(ref toolCallsCount));
              if (data == null)
-@@ -243,6 +248,7 @@
+@@ -264,6 +269,7 @@
  
          public void Dispose()
          {
@@ -367,9 +367,9 @@ diff --git a/McpPlugin/src/Mcp/McpSystemToolManager.cs b/McpPlugin/src/Mcp/McpSy
 diff --git a/McpPlugin/src/Mcp/Tool/RunTool.cs b/McpPlugin/src/Mcp/Tool/RunTool.cs
 --- a/McpPlugin/src/Mcp/Tool/RunTool.cs
 +++ b/McpPlugin/src/Mcp/Tool/RunTool.cs
-@@ -72,7 +72,8 @@
- 
-         public MethodInfo Method => _methodInfo;
+@@ -133,7 +133,8 @@
+         JsonNode? IRunTool.InputSchema => BoundSignature() is { } s ? s.InputSchema : InputSchema;
+         JsonNode? IRunTool.OutputSchema => BoundSignature() is { } s ? s.OutputSchema : OutputSchema;
  
 -        protected string? RequestID { get; set; }
 +        private readonly AsyncLocal<string?> _requestId = new();
@@ -401,8 +401,8 @@ diff --git a/McpPlugin.Server/McpPlugin.Server.csproj b/McpPlugin.Server/McpPlug
      <!-- NuGet Package Information -->
      <IsPackable>true</IsPackable>
      <PackageId>com.IvanMurzak.McpPlugin.Server</PackageId>
--    <Version>8.6.0</Version>
-+    <Version>8.6.0-request-safety.1</Version>
+-    <Version>8.8.0</Version>
++    <Version>8.8.0-request-safety.3</Version>
      <Authors>Ivan Murzak</Authors>
      <Company>Ivan Murzak</Company>
      <Copyright>Copyright © Ivan Murzak 2025</Copyright>
@@ -427,7 +427,7 @@ diff --git a/McpPlugin.Server/src/Client/ClientUtils.cs b/McpPlugin.Server/src/C
              where TRequest : IRequestID
              where THub : Hub
          {
-@@ -196,35 +196,49 @@
+@@ -198,38 +198,49 @@
                          var allConnections = string.Join(", ", AllConnections);
                          logger.LogTrace("Invoke '{0}': ConnectionId ='{1}'. RequestData:\n{2}\n{3}", methodName, connectionId, request, allConnections);
                      }
@@ -457,7 +457,7 @@ diff --git a/McpPlugin.Server/src/Client/ClientUtils.cs b/McpPlugin.Server/src/C
 -                            return result;
 +                            return result ?? ResponseData<TResponse>.Error(request.RequestID, "Delivered request returned no result; outcome unknown, not retried.", ResponseErrorKind.Internal);
                          }
--                        catch (Exception ex)
+-                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 +                        return ResponseData<TResponse>.Error(request.RequestID,
 +                            $"Request {request.RequestID} was delivered but its outcome is unknown (timeout/cancellation). It was NOT retried. Query a stable operation ID before any new write.", ResponseErrorKind.Timeout);
 +                    }
@@ -472,10 +472,7 @@ diff --git a/McpPlugin.Server/src/Client/ClientUtils.cs b/McpPlugin.Server/src/C
 +                        // Explicit remote cancellation + deadline guard the engine's queued work.
 +                        if (invokeTask == null || !invokeTask.IsCompletedSuccessfully)
                          {
--                            logger.LogError(ex, $"Invoke '{methodName}': Error invoking '{request}' on client '{connectionId}': {ex.Message}");
--                            // RemoveCurrentClient(client);
--                            await Task.Delay(50, cancellationToken); // Wait before retrying
--                            continue;
+-                            throw;
 +                            if (request is RequestCallTool cancelRequest)
 +                            {
 +                                try
@@ -488,17 +485,32 @@ diff --git a/McpPlugin.Server/src/Client/ClientUtils.cs b/McpPlugin.Server/src/C
 +                            invokeCts.Cancel();
 +                            if (invokeTask != null) _ = invokeTask.ContinueWith(t => { _ = t.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
                          }
-                     }
+-                        catch (Exception ex)
+-                        {
+-                            logger.LogError(ex, $"Invoke '{methodName}': Error invoking '{request}' on client '{connectionId}': {ex.Message}");
+-                            await Task.Delay(50, cancellationToken); // Wait before retrying
+-                            continue;
+-                        }
+-                    }
 -
 -                    // Timeout occurred
 -                    sawTimeout = true;
--                    logger.LogWarning($"Invoke '{methodName}': Timeout: Client '{connectionId}' did not respond in {dataArguments.PluginTimeoutMs} ms. Removing from ConnectedClients.");
--                    // RemoveCurrentClient(client);
+-                    logger.LogWarning("Invoke '{methodName}': Timeout: Client '{connectionId}' did not respond in {timeoutMs} ms. Retrying [{retryCount}/{maxRetries}].",
+-                        methodName, connectionId, dataArguments.PluginTimeoutMs, retryCount, maxRetries);
 -                    await Task.Delay(retryDelayMs, cancellationToken); // Wait before retrying
 -                    // Restart the loop to try again with a new client
++                    }
                  }
                  var errorKind = sawTimeout
                      ? ResponseErrorKind.Timeout
+@@ -239,7 +250,6 @@
+             }
+             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+             {
+-                logger.LogDebug("Invoke '{methodName}': Request cancelled by the caller.", methodName);
+                 throw;
+             }
+             catch (Exception ex)
 diff --git a/McpPlugin.Server/src/Client/RemoteToolRunner.cs b/McpPlugin.Server/src/Client/RemoteToolRunner.cs
 --- a/McpPlugin.Server/src/Client/RemoteToolRunner.cs
 +++ b/McpPlugin.Server/src/Client/RemoteToolRunner.cs
@@ -711,7 +723,7 @@ diff --git a/McpPlugin.Server/src/Client/RemoteSystemToolRunner.cs b/McpPlugin.S
 diff --git a/McpPlugin.Server/src/Client/RequestTrackingService.cs b/McpPlugin.Server/src/Client/RequestTrackingService.cs
 --- a/McpPlugin.Server/src/Client/RequestTrackingService.cs
 +++ b/McpPlugin.Server/src/Client/RequestTrackingService.cs
-@@ -7,195 +7,75 @@
+@@ -7,202 +7,76 @@
  │  See the LICENSE file in the project root for more information.        │
  └────────────────────────────────────────────────────────────────────────┘
  */
@@ -770,6 +782,8 @@ diff --git a/McpPlugin.Server/src/Client/RequestTrackingService.cs b/McpPlugin.S
 -            if (string.IsNullOrEmpty(requestId))
 -                throw new ArgumentException("RequestId cannot be null or empty", nameof(requestId));
 -
+-            cancellationToken.ThrowIfCancellationRequested();
+-
 -            _logger.LogTrace("Tracking request: {RequestId} with timeout: {timeout}", requestId, timeout);
 -
 -            var pendingRequest = new PendingRequest(requestId, timeout);
@@ -794,6 +808,7 @@ diff --git a/McpPlugin.Server/src/Client/RequestTrackingService.cs b/McpPlugin.S
 +                    var captured = entry;
 +                    entry.Execution = new Lazy<Task<ResponseCallTool>>(async () =>
 +                    {
++                        cancellationToken.ThrowIfCancellationRequested();
 +                        var initial = await executeRequest().ConfigureAwait(false);
 +                        if (initial.Status != ResponseStatus.Processing) return initial;
 +                        // Preserve legacy completion notifications. New durable operations
@@ -810,6 +825,11 @@ diff --git a/McpPlugin.Server/src/Client/RequestTrackingService.cs b/McpPlugin.S
 -                var finalResult = await pendingRequest.WaitForCompletion(cancellationToken);
 -                return finalResult;
              }
+-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+-            {
+-                _logger.LogDebug("Request {RequestId} cancelled by the caller", requestId);
+-                throw;
+-            }
 -            catch (Exception ex)
 -            {
 -                _logger.LogError(ex, "Error executing request {RequestId}", requestId);
@@ -920,7 +940,7 @@ diff --git a/McpPlugin.Server/src/Client/RequestTrackingService.cs b/McpPlugin.S
 -                }
 -                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 -                {
--                    return ResponseCallTool.Error("Request was canceled", ResponseErrorKind.Timeout).SetRequestID(RequestId);
+-                    throw;
 -                }
 -                catch (OperationCanceledException) when (TimeoutCts.Token.IsCancellationRequested)
 -                {
@@ -947,48 +967,6 @@ diff --git a/McpPlugin.Server/src/Client/RequestTrackingService.cs b/McpPlugin.S
              }
          }
      }
-diff --git a/McpPlugin.Server/src/Extension/ExtensionsTask.cs b/McpPlugin.Server/src/Extension/ExtensionsTask.cs
---- a/McpPlugin.Server/src/Extension/ExtensionsTask.cs
-+++ b/McpPlugin.Server/src/Extension/ExtensionsTask.cs
-@@ -23,31 +23,19 @@
- 
-         public static async Task<bool> WaitWithTimeout(this Task task, TimeSpan timeout, CancellationToken cancellationToken = default)
-         {
-+            using var delayCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-             try
-             {
--                var completedTask = await Task.WhenAny(task, Task.Delay(timeout, cancellationToken));
--                return completedTask == task;
-+                var delay = Task.Delay(timeout, delayCts.Token);
-+                return await Task.WhenAny(task, delay) == task;
-             }
--            catch (OperationCanceledException)
--            {
--                return false; // Task was cancelled
--            }
-+            finally { delayCts.Cancel(); }
-         }
- 
-         public static Task<bool> WaitWithTimeout<T>(this Task<T> task, int timeoutMs = DefaultTimeoutMs, CancellationToken cancellationToken = default)
--            => WaitWithTimeout(task, TimeSpan.FromMilliseconds(timeoutMs), cancellationToken);
-+            => WaitWithTimeout((Task)task, TimeSpan.FromMilliseconds(timeoutMs), cancellationToken);
- 
--        public static async Task<bool> WaitWithTimeout<T>(this Task<T> task, TimeSpan timeout, CancellationToken cancellationToken = default)
--        {
--            try
--            {
--                var completedTask = await Task.WhenAny(task, Task.Delay(timeout, cancellationToken));
--                return completedTask == task;
--            }
--            catch (OperationCanceledException)
--            {
--                return false; // Task was cancelled
--            }
--        }
-+        public static Task<bool> WaitWithTimeout<T>(this Task<T> task, TimeSpan timeout, CancellationToken cancellationToken = default)
-+            => WaitWithTimeout((Task)task, timeout, cancellationToken);
-     }
- }
 diff --git a/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs b/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs
 --- a/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs
 +++ b/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs
@@ -1024,7 +1002,7 @@ diff --git a/McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs b/McpPlugin.S
 new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs
-@@ -0,0 +1,268 @@
+@@ -0,0 +1,283 @@
 +/*
 +┌────────────────────────────────────────────────────────────────────────┐
 +│  Author: Ivan Murzak (https://github.com/IvanMurzak)                   │
@@ -1127,7 +1105,7 @@ new file mode 100644
 +            using var cancellation = new CancellationTokenSource();
 +            cancellation.Cancel();
 +            var transport = new Transport(Success);
-+            await transport.Run(token: cancellation.Token);
++            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => transport.Run(token: cancellation.Token));
 +            Assert.Equal(0, transport.Sends);
 +        }
 +        [Fact]
@@ -1157,6 +1135,21 @@ new file mode 100644
 +            Assert.Same(await first, await Run());
 +            Assert.Equal(1, count);
 +            Assert.Throws<InvalidOperationException>(() => { _ = tracking.TrackRequestAsync("scoped-id", () => finish.Task, TimeSpan.Zero, fingerprint: "different"); });
++        }
++        [Fact]
++        public async Task ServerTracker_PreCanceledRequestDoesNotDispatch_ButCompletedReplaySurvivesCancellation()
++        {
++            using var tracking = new RequestTrackingService(NullLogger<RequestTrackingService>.Instance);
++            using var canceled = new CancellationTokenSource();
++            canceled.Cancel();
++            int calls = 0;
++            Task<ResponseCallTool> Execute() { ++calls; return Task.FromResult(ResponseCallTool.Success()); }
++            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
++                tracking.TrackRequestAsync("canceled-before-start", Execute, TimeSpan.FromSeconds(1), canceled.Token));
++            Assert.Equal(0, calls);
++            var result = await tracking.TrackRequestAsync("already-completed", Execute, TimeSpan.FromSeconds(1));
++            Assert.Same(result, await tracking.TrackRequestAsync("already-completed", Execute, TimeSpan.FromSeconds(1), canceled.Token));
++            Assert.Equal(1, calls);
 +        }
 +        [Fact]
 +        public async Task ServerTracker_ProcessingNotificationCanArriveBeforeInitialResponse()

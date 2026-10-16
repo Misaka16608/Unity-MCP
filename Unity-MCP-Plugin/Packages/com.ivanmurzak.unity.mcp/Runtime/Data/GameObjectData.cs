@@ -35,6 +35,17 @@ namespace AIGD
         [Description("Attached components shallow data of the GameObject (Read-only, use Component modification tool for modification).")]
         public ComponentDataShallow[]? Components { get; set; } = null;
 
+        internal static Bounds CalculateBounds(GameObject go)
+        {
+            var renderers = go.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0)
+                return new Bounds(go.transform.position, Vector3.zero);
+            var bounds = renderers[0].bounds;
+            for (var i = 1; i < renderers.Length; i++)
+                bounds.Encapsulate(renderers[i].bounds);
+            return bounds;
+        }
+
         public GameObjectData() { }
         public GameObjectData(
             Reflector reflector,
@@ -66,10 +77,10 @@ namespace AIGD
             }
 
             if (includeBounds)
-                Bounds = go.CalculateBounds();
+                Bounds = CalculateBounds(go);
 
             if (includeHierarchy)
-                Hierarchy = go.ToMetadata(hierarchyDepth);
+                Hierarchy = GameObjectMetadata.FromGameObject(go, hierarchyDepth);
         }
     }
 

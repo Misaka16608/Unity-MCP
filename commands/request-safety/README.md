@@ -16,7 +16,7 @@ pwsh -NoProfile -File commands/request-safety/build.ps1 -SeedToolProject
 
 The script downloads official source archives at the commits in `sources.json`,
 checks original file hashes, applies the tracked patches, checks patched hashes,
-builds the paired packages, runs 14 safety tests, 118 existing server regression
+builds the paired packages, runs 15 safety tests, 120 existing server regression
 tests and 61 EngineFree tests, checks the dependency generation gate, and builds
 the local Windows server. `-SkipPublish` skips generating the server executable;
 `publish` here is a local .NET build command, with no upload or deployment.
@@ -25,22 +25,22 @@ All scratch outputs are under `.local/request-safety/`:
 
 - `deps/`: prepared upstream sources. Existing changed source is rejected instead
   of overwritten. Preserve it before preparing a different patch revision.
-- `feed/`: unpublished `8.6.0-request-safety.1` Common/plugin packages.
+- `feed/`: unpublished `8.8.0-request-safety.3` Common/plugin packages.
 - `nuget/<source-manifest-digest>/`: isolated restore cache for the exact patch.
-- `publish/gamedev-mcp-server.exe`: host `9.2.9-request-safety.1`, framework dependent.
+- `publish/gamedev-mcp-server.exe`: host `9.2.11-request-safety.3`, framework dependent.
 - `results/`: TRX results and optional Unity source compilation log.
 
 `-SeedToolProject` updates only this repository's `Unity-MCP-Plugin` DLL drops,
 installed manifest and NuGet cache. It never connects to an editor. These paired
 DLLs are tracked because the tool project already tracks its dependency drops.
-The patched API is `2.0.0-request-safety.1`; its handshake rejects the released
+The patched API is `2.0.0-request-safety.3`; its handshake rejects the released
 server's API. Before starting a future isolated editor/server, explicitly set
 `UNITY_MCP_SERVER_PATH` to the absolute `publish/gamedev-mcp-server.exe` path.
 The released download pin is retained; no nonexistent GitHub release is assumed.
 
 The prerelease packages are **local only**. The existing release and chain CI
 must be adapted to build this patch or consume an approved matching dependency
-release before publishing it. Do not substitute released 8.6.0 packages or an
+release before publishing it. Do not substitute released 8.8.0 packages or an
 unpatched chain feed: the new source requires the repaired execution APIs.
 
 On this Windows sandbox, the build uses a bounded-purpose loopback NuGet proxy
@@ -134,7 +134,7 @@ pairing requirements above still apply.
 
 ### Install the matching server in an existing project
 
-An API mismatch (`Plugin: 2.0.0-request-safety.1, Server: 2.0.0`) means
+An API mismatch (`Plugin: 2.0.0-request-safety.3, Server: 2.0.0`) means
 the DLL repair succeeded but the editor still connects to the released server.
 Build the matching server with `build.ps1` (without `-SeedToolProject`), then:
 
@@ -144,7 +144,7 @@ python commands/request-safety/configure-project-server.py --project 'F:/path/to
 ```
 
 This installs the verified local publish tree under the project's
-`Library/mcp-server-paired/9.2.9-request-safety.1`, seeds the two matching
+`Library/mcp-server-paired/9.2.11-request-safety.3`, seeds the two matching
 packages into `Library/NuGetCache`, and appends `UNITY_MCP_SERVER_PATH` to
 the project-root `.env`. Existing `.env` files are backed up under
 `.local/request-safety/server-repair/`. Ports, authentication and other settings

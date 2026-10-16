@@ -114,3 +114,37 @@ Local rollback evidence:
 
 The matching server and prerelease packages remain local artifacts; this repair
 did not publish a release or alter the default public server download pin.
+
+
+## Upstream 1.0.1 integration — 2026-10-16
+
+Merged upstream `ae97f6c9126c31bc0787b786104bb14882a64121`, including the
+persistent main-thread pump fix `59ecf21bbf24b45e551f413deab71f4cc705d15d`.
+The local queued-execution claim, cancellation/deadline guards, request ledger,
+durable operation tools, runtime input tools and prefab hierarchy reader remain.
+The upstream RQL migration and new request/result binding are retained.
+
+The paired repair is now based on McpPlugin 8.8.0
+(`de666f4f8946d9702cf4bb59d5b0ff84c8d95990`) and host 9.2.11
+(`983ce951e562222fe2cbfbcd9e4434b33a114be7`), using package
+`8.8.0-request-safety.3`, API `2.0.0-request-safety.3`, host
+`9.2.11-request-safety.3`, and gate `UNITY_MCP_DEPS_12` (16 pins).
+Both tracked patches passed `git apply --check` on independent pristine sources.
+
+In the isolated `codex/merge-upstream-1-0-1` worktree:
+
+- 15 RequestExecution tests, 120 existing server regressions, and 61 EngineFree
+  tests passed (196 total). The added case verifies pre-canceled dispatch refusal
+  and completed-response replay despite cancellation of a duplicate caller.
+- The Common/plugin packages and Windows framework-dependent host built.
+- The complete DependencyResolver, Runtime and Editor source sets compiled with
+  real installed Unity 2021.3.33f1 and 2022.3.62f3 references (zero errors).
+  The initial compile harness shared reference caches across versions; fresh,
+  independent SDK project directories resolved that harness problem. No product
+  change was needed. Existing upstream nullable/unused-field warnings remain.
+- Local evidence: `.local/request-safety/merge-build.log`, the three successful
+  `admin_DESKTOP-R99PM8Q_2026-10-16_16_38_*.trx` files, and
+  `.local/request-safety/full-compile-clean/<version>/<assembly>/check.log`.
+
+These checks do not claim a Unity Player build or gameplay test pass. This is a
+local integration; no packages, release assets or Git branches were published.

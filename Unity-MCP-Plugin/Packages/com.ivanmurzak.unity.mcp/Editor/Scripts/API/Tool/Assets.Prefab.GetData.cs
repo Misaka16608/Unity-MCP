@@ -36,11 +36,11 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             IdempotentHint = true
         )]
         [AiSkillDescription("Retrieve the full GameObject hierarchy of a prefab asset in a single call — " +
-            "the prefab equivalent of '" + Tool_Scene.SceneGetDataToolId + "'. " +
+            "the prefab equivalent of '" + Tool_Rql.QueryToolId + "'. " +
             "Loads the prefab directly, no need to open/close the prefab stage. " +
-            "Use '" + Tool_Assets.AssetsFindToolId + "' to locate the prefab first.")]
+            "Use '" + Tool_Rql.QueryToolId + "' to locate the prefab first.")]
         [AiSkillBody("Retrieve the full GameObject hierarchy of a prefab asset. " +
-            "Use '" + Tool_Assets.AssetsFindToolId + "' to find prefabs.\n\n" +
+            "Use '" + Tool_Rql.QueryToolId + "' to find prefabs.\n\n" +
             "## Toggles (all default `false` to keep responses small)\n\n" +
             "- `includeChildrenDepth` (default 3) — depth of the hierarchy to include.\n" +
             "- `includeBounds` — include 3D bounds for GameObjects.\n" +
@@ -53,7 +53,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "`fieldName`, `nested/field`, `arrayField/[i]`, `dictField/[key]`. Leading `#/` is stripped. " +
             "Example: `paths=['m_Name']` reads the root GameObject's name.")]
         [Description("Retrieve the full GameObject hierarchy of a prefab asset. " +
-            "Use '" + Tool_Assets.AssetsFindToolId + "' to find prefabs.\n\n" +
+            "Use '" + Tool_Rql.QueryToolId + "' to find prefabs.\n\n" +
             "Path-scoped reads (token-saving): supply '" + "paths" + "' (a list of paths) to read only the listed " +
             "fields/elements from the prefab root GameObject's data via Reflector.TryReadAt, or '" + "viewQuery" +
             "' (a ViewQuery) to navigate/filter via Reflector.View. The result populates 'Data' on the " +
@@ -62,7 +62,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
         public PrefabData GetData
         (
             [Description("Prefab asset path, e.g. 'Assets/Prefabs/MyPrefab.prefab'. " +
-                "Use '" + Tool_Assets.AssetsFindToolId + "' to locate. Mutually exclusive with 'gameObjectRef'.")]
+                "Use '" + Tool_Rql.QueryToolId + "' to locate. Mutually exclusive with 'gameObjectRef'.")]
             string? prefabAssetPath = null,
             [Description("Scene prefab instance reference. Resolves to its source prefab asset. " +
                 "Mutually exclusive with 'prefabAssetPath'.")]
@@ -132,7 +132,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                     if (go == null)
                         throw new ArgumentException(
                             $"GameObject not found for the provided reference. " +
-                            $"Use '{Tool_Assets.AssetsFindToolId}' to locate prefab instances first.");
+                            $"Use '{Tool_Rql.QueryToolId}' to locate prefab instances first.");
 
                     resolvedAssetPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(go);
                     if (string.IsNullOrEmpty(resolvedAssetPath))
