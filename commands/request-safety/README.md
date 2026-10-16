@@ -111,6 +111,61 @@ not as a fabricated completion. No completion notification is promised.
 
 ## Unity checks
 
+### Repair an existing linked project
+
+Projects referencing this checkout through UPM `file:` links keep their own
+`Assets/Plugins/NuGet` DLLs. Updating this repository does not update those DLLs.
+An older Common assembly produces `CS0234` for `Common.Execution` and `CS0246`
+for `ToolExecutionContext`. To synchronize the three paired managed dependencies
+with this checkout, inspect the plan first:
+
+```powershell
+python commands/request-safety/repair-project-dependencies.py --project 'F:/path/to/project'
+# Add --apply to install; repeat --project for multiple explicitly selected projects.
+```
+
+The command backs up every changed file and records before/after hashes under
+`.local/request-safety/project-repair/`. It preserves existing `.meta` importer
+settings and unrelated dependencies. It updates Common, McpPlugin, ReflectorNet
+and their installed-manifest entries only. Let Unity refresh/recompile afterward.
+This repairs the existing DLL installation; it does not provision a NuGet cache
+for future clean restores or install/start the matching native server. The API
+pairing requirements above still apply.
+
+### Install the matching server in an existing project
+
+An API mismatch (`Plugin: 2.0.0-request-safety.1, Server: 2.0.0`) means
+the DLL repair succeeded but the editor still connects to the released server.
+Build the matching server with `build.ps1` (without `-SeedToolProject`), then:
+
+```powershell
+python commands/request-safety/configure-project-server.py --project 'F:/path/to/project'
+# Review the plan, then add --apply. Repeat --project for selected projects.
+```
+
+This installs the verified local publish tree under the project's
+`Library/mcp-server-paired/9.2.9-request-safety.1`, seeds the two matching
+packages into `Library/NuGetCache`, and appends `UNITY_MCP_SERVER_PATH` to
+the project-root `.env`. Existing `.env` files are backed up under
+`.local/request-safety/server-repair/`. Ports, authentication and other settings
+are preserved. The server requires the .NET 9 runtime.
+
+The command does not manage running processes. Stop the project's old MCP server
+and start the paired executable with the same port, transport and authentication
+arguments. In Unity, refresh resources to import the repaired DLLs. If the editor
+already rejected a version handshake, disconnect and reconnect explicitly (or
+reload scripts with KeepConnected enabled): that rejection disables automatic
+reconnection. Verify `/api/tools` and a real `POST /api/system-tools/ping` response
+for each project; a listening port alone does not establish a successful pairing.
+
+Unity 2021 projects can also reject the entire MCP assembly graph when an older
+third-party `System.Runtime.CompilerServices.Unsafe` shadows the required 6.0
+assembly. Check the actual assembly-load errors separately from API pairing.
+An Editor-only compatibility installation can preserve the original Player DLL
+selection; validate any affected third-party library with a real Editor smoke
+check. Do not assume a successful source compilation establishes assembly loading
+or change global assembly-version validation to hide the conflict.
+
 Compile the changed Editor/Player source and new EditMode tests against real
 installed Unity and dependency DLLs, without launching an editor:
 

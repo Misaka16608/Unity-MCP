@@ -56,3 +56,61 @@ server/plugin restart; use durable operations for a stable cross-restart ID.
 The local artifacts and prerelease pins must be used as a matched pair. Public
 NuGet, default release downloads and the existing release/chain workflows have
 not been published or migrated to this repair.
+
+## Existing-project repair — 2026-10-16
+
+After local `main` was fast-forwarded to `1301da0bc7ee61561fd985ee4eef66f8c5038295`,
+four explicitly selected linked projects were repaired. The paired source build
+was repeated without `-SeedToolProject`: 14 safety, 118 server regression and 61
+EngineFree tests passed (193 total, zero failures). Evidence is in the three
+`admin_DESKTOP-R99PM8Q_2026-10-16_*.trx` files under
+`.local/request-safety/results/` and `.local/request-safety/server-build.log`.
+The 15-pin dependency generation gate also passed.
+
+`repair-project-dependencies.py` synchronized the three managed dependency drops
+and their manifest entries; `configure-project-server.py` installed the matching
+local server, seeded the two prerelease restore packages and set the project-root
+`.env` launch override. Both commands subsequently reported no changes needed.
+Only the four identified old MCP server processes were replaced, retaining their
+ports, transport and auth arguments. Existing Unity processes were kept open.
+
+After importing the DLLs and reloading scripts, these real HTTP checks passed:
+
+| Project | Port | Registered tools | System ping |
+| --- | --- | --- | --- |
+| `F:/JSLM005` | 21000 | 80 | `pong` |
+| `D:/YYBS_YB/yybs_yuanban_0.1zhe` | 21500 | 80 | `pong` |
+| `F:/YYBS/Android/yybs_lz/int_UseMCP` | 25631 | 80 | `pong` |
+| `F:/YYBS/Android/yybs_lz/patch_UseMCP` | 25630 | 80 | `pong` |
+
+The final responses are recorded in
+`.local/request-safety/project-pairing-verification.json`. These establish live
+Editor loading, version pairing and tool responsiveness; they do not establish a
+Player build, gameplay regression pass or execution of the two EditMode tests.
+
+Unity 2021 in `JSLM005` additionally rejected MCP dependencies because its legacy
+Protobuf dependency selected Unsafe `4.0.4.1` instead of required `6.0.0.0`.
+Editor-only copies were installed under `Assets/Plugins/McpEditorSupport`:
+Unsafe from this checkout, plus a byte-identical copy of the project's existing
+Google.Protobuf DLL. Only that Editor copy of Protobuf has reference-version
+validation disabled. The original Protobuf/Unsafe importers now exclude Editor;
+their Player platform selections, validation settings and DLL bytes were
+preserved. Global assembly-version validation was not disabled.
+
+A real `script-execute` check in the live Editor serialized and parsed a 4 KB
+Protobuf string, asserted equality and confirmed Unsafe `6.0.0.0` and Protobuf
+loaded from the Editor support folder. The temporary reconnect source and its
+`.meta` were removed before the final successful HTTP checks.
+
+Local rollback evidence:
+
+- Managed DLLs/manifests:
+  `.local/request-safety/project-repair/16e77bc5120d4e90abc7b91a28aabf60/`.
+- Original project `.env` files:
+  `.local/request-safety/server-repair/0aba7442128f45f887e3a48e117331c0/`.
+- Original JSLM005 importer metadata and added-file records:
+  `.local/request-safety/editor-assembly-repair/da70b37780844fa188aa7524f52d1e7d/`
+  and `03de5c6ce74d446b806c7d95734ddb3c/`.
+
+The matching server and prerelease packages remain local artifacts; this repair
+did not publish a release or alter the default public server download pin.
