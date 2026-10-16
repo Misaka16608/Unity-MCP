@@ -148,3 +148,55 @@ In the isolated `codex/merge-upstream-1-0-1` worktree:
 
 These checks do not claim a Unity Player build or gameplay test pass. This is a
 local integration; no packages, release assets or Git branches were published.
+
+
+### Live activation of upstream integration
+
+Local main was fast-forwarded to merge `a8a9daeb`. All four linked projects
+received the matched Common/plugin/ReflectorNet/RQL DLLs and the
+`9.2.11-request-safety.3` server launch override. The old server versions remain
+on disk, and only the four identified old MCP server processes were replaced.
+Editor processes and existing scene state were preserved.
+
+After compilation and domain reload, every project returned 25 registered tools,
+`pong`, and a successful read-only `scenes | first 1 | select name path isDirty`
+RQL query. The fork's runtime input, prefab hierarchy and durable operation tools
+remain registered. The old individual upstream scene/asset tools were replaced
+by the upstream RQL interface.
+
+Each real Editor also ran an 8-worker, 4,000-callback dispatch check: all callbacks
+ran exactly once on the Unity main thread. Callbacks canceled or expired while
+queued performed zero writes. All four result files report `passed` (16,000
+callbacks total); these are actual Editor execution checks, not stand-in types or
+claims that the whole Unity Test Runner suite ran. The test writes only its
+result under each project's Library directory and changes no scene/assets.
+
+The integration smoke additionally found that RQL's default object presentation
+expanded the prefab DTO's System.Type and rendered child DTOs as handles. Its
+result binding now uses the existing ReflectorNet JSON converters for PrefabData,
+preserving nested hierarchy and selected fields. Both Unity versions recompiled
+with zero errors and the same existing warnings. A real read of
+`Assets/Resources/UI/CardStarResonanceWindow/CardStarResonanceWindow.prefab` in
+int_UseMCP returned the root, inline children, bounds and selected `name` field;
+the prefab was not modified.
+
+JSLM005's 4 KB Protobuf roundtrip passed again after the final reload, with Unsafe
+6.0.0.0 and its original Google.Protobuf loaded from the Editor support folder.
+Final repair/configuration dry runs reported no changes required for all projects.
+
+Final local evidence in the main checkout:
+
+- `.local/request-safety/project-pairing-verification.json`
+- `.local/request-safety/upstream-live-verification.json`
+- `.local/request-safety/prefab-read-after-upstream.json`
+- `.local/request-safety/main-thread-smoke.cs.txt`
+- `.local/request-safety/prefab-binding-compile-2021.log` and `-2022.log`
+
+Rollback records for this upgrade:
+
+- Prior local dependency sources/server artifacts:
+  `.local/request-safety/before-upstream-d02b4aaeca5d488b8d71f020b9639ce0/`
+- Prior managed DLLs/manifests:
+  `.local/request-safety/project-repair/a1b67246cbe34bd1bbb12fbb779a1ea4/`
+- Prior project .env launch overrides:
+  `.local/request-safety/server-repair/31056fca89464b368cab24333964353b/`
