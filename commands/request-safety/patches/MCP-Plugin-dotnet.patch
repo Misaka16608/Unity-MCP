@@ -38,6 +38,7 @@ diff --git a/McpPlugin.Common/src/Data/Request/Tool/Call/RequestCallTool.cs b/Mc
  
          public RequestCallTool() { }
 diff --git a/McpPlugin.Common/src/Execution/ExecutionRegistry.cs b/McpPlugin.Common/src/Execution/ExecutionRegistry.cs
+new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Common/src/Execution/ExecutionRegistry.cs
 @@ -0,0 +1,97 @@
@@ -139,6 +140,7 @@ diff --git a/McpPlugin.Common/src/Execution/ExecutionRegistry.cs b/McpPlugin.Com
 +    }
 +}
 diff --git a/McpPlugin.Common/src/Execution/ToolExecutionContext.cs b/McpPlugin.Common/src/Execution/ToolExecutionContext.cs
+new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Common/src/Execution/ToolExecutionContext.cs
 @@ -0,0 +1,40 @@
@@ -183,6 +185,7 @@ diff --git a/McpPlugin.Common/src/Execution/ToolExecutionContext.cs b/McpPlugin.
 +    }
 +}
 diff --git a/McpPlugin.Common/src/Hub/Client/ICancellableToolHub.cs b/McpPlugin.Common/src/Hub/Client/ICancellableToolHub.cs
+new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Common/src/Hub/Client/ICancellableToolHub.cs
 @@ -0,0 +1,29 @@
@@ -269,6 +272,7 @@ diff --git a/McpPlugin/src/Mcp/McpToolManager.cs b/McpPlugin/src/Mcp/McpToolMana
              _tools.Clear();
          }
 diff --git a/McpPlugin/src/Mcp/ToolRequestExecutor.cs b/McpPlugin/src/Mcp/ToolRequestExecutor.cs
+new file mode 100644
 --- /dev/null
 +++ b/McpPlugin/src/Mcp/ToolRequestExecutor.cs
 @@ -0,0 +1,58 @@
@@ -977,6 +981,7 @@ diff --git a/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs b/McpPlugin.Server
                  logger.Trace("Call remote tool '{0}':\n{1}", request.Params.Name, requestData.ToPrettyJson());
  
 diff --git a/McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs b/McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs
+new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs
 @@ -0,0 +1,283 @@
@@ -1264,6 +1269,7 @@ diff --git a/McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs b/McpPlugin.S
 +    }
 +}
 diff --git a/McpPlugin.Server.Tests/RequestExecutionTransportTests.cs b/McpPlugin.Server.Tests/RequestExecutionTransportTests.cs
+new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Server.Tests/RequestExecutionTransportTests.cs
 @@ -0,0 +1,113 @@
