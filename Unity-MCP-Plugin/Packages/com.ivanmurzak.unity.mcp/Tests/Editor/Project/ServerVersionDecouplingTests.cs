@@ -41,12 +41,12 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests
         }
 
         [Test]
-        public void DownloadUrl_PointsAtSharedGameDevMcpServerRepo()
+        public void DownloadUrl_PointsAtPairedForkRelease()
         {
             var url = McpServerManager.ExecutableZipUrl;
 
-            StringAssert.StartsWith("https://github.com/IvanMurzak/GameDev-MCP-Server/releases/download/", url,
-                "Server binaries are released from the shared GameDev-MCP-Server repo, not Unity-MCP.");
+            StringAssert.StartsWith("https://github.com/Misaka16608/Unity-MCP/releases/download/", url,
+                "Paired server binaries are hosted by this fork.");
             StringAssert.Contains($"/gamedev-mcp-server-{McpServerManager.PlatformName}.zip", url,
                 "Release asset name is gamedev-mcp-server-<rid>.zip.");
         }

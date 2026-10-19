@@ -25,3 +25,5 @@
   - [Español](/README.es)
   - [日本語](/README.ja)
   - [中文](/README.zh-CN)
+
+- [GitHub Release 统一托管定制依赖](dev/github-release-hosting.zh-CN.md)

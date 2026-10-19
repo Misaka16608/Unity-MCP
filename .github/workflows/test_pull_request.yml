@@ -178,6 +178,10 @@ jobs:
         id: chain
         run: ${{ env.CHAIN_PY }} .github/scripts/chain_feed.py apply --node unity-mcp --job engine-free-tests --edges nuget
 
+      - name: Restore paired fork packages
+        if: env.CHAIN_ACTIVE != '1'
+        run: python3 commands/request-safety/release_assets.py fetch-packages
+
       - name: Test
         run: dotnet test Unity-MCP-Plugin/Tests~/EngineFree/EngineFree.csproj -c Release --logger trx -- RunConfiguration.TreatNoTestsAsError=true
 

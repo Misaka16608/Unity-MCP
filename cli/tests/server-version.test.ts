@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { DEFAULT_SERVER_VERSION, serverReleaseTag } from '../src/utils/server-version.js';
+import { DEFAULT_SERVER_VERSION, SERVER_RELEASE_REPO, serverReleaseTag } from '../src/utils/server-version.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,6 +24,12 @@ const MCP_SERVER_MANAGER_CS = path.resolve(
 );
 
 describe('DEFAULT_SERVER_VERSION drift guard', () => {
+  it('uses the same release repository as the Unity dependency resolver', () => {
+    const file = path.resolve(__dirname, '../../Unity-MCP-Plugin/Packages/com.ivanmurzak.unity.mcp/Editor/DependencyResolver/NuGetPackage.cs');
+    if (!fs.existsSync(file)) return;
+    const source = fs.readFileSync(file, 'utf-8');
+    expect(source.match(/const string Repository\s*=\s*"([^"]+)"/)?.[1]).toBe(SERVER_RELEASE_REPO);
+  });
   it('is a valid semver-ish version string', () => {
     expect(DEFAULT_SERVER_VERSION).toMatch(/^\d+\.\d+\.\d+/);
   });

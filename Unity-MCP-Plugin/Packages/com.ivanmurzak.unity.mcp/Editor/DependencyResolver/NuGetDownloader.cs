@@ -48,9 +48,36 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
         {
             NuGetCache.EnsureCacheDirectory();
             var cachedPath = NuGetCache.GetCachedPath(package);
+            var hosted = HostedDependencyRelease.IsHostedPackage(package.Id, package.Version);
+            string? manifest = null;
+            if (hosted)
+            {
+                // Cache the manifest alongside the packages so a verified cache also works offline.
+                var sumsPath = Path.Combine(Path.GetDirectoryName(cachedPath)!,
+                    $"SHA256SUMS-{HostedDependencyRelease.ServerVersion}");
+                if (!File.Exists(sumsPath))
+                {
+                    var sums = httpClient.GetStringAsync(HostedDependencyRelease.AssetUrl("SHA256SUMS"))
+                        .GetAwaiter().GetResult();
+                    File.WriteAllText(sumsPath, sums);
+                }
+                manifest = File.ReadAllText(sumsPath);
+            }
 
             if (File.Exists(cachedPath))
-                return cachedPath;
+            {
+                if (!hosted)
+                    return cachedPath;
+                try
+                {
+                    HostedDependencyRelease.VerifyFile(cachedPath, package.CacheFileName, manifest!);
+                    return cachedPath;
+                }
+                catch (InvalidDataException)
+                {
+                    File.Delete(cachedPath);
+                }
+            }
 
             var url = package.DownloadUrl;
             Debug.Log($"{Tag} Downloading {package.Id} {package.Version} from {url}");
@@ -66,6 +93,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
                         stream.CopyTo(fileStream);
                     }
                 }
+                if (hosted)
+                    HostedDependencyRelease.VerifyFile(cachedPath, package.CacheFileName, manifest!);
                 Debug.Log($"{Tag} Downloaded {package.Id} {package.Version} ({new FileInfo(cachedPath).Length / 1024} KB)");
             }
             catch (Exception ex)

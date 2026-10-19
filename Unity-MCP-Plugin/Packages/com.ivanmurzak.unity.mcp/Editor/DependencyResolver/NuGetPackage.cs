@@ -9,6 +9,10 @@
 */
 
 #nullable enable
+using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
 {
@@ -43,6 +47,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
         {
             get
             {
+                if (HostedDependencyRelease.IsHostedPackage(Id, Version))
+                    return HostedDependencyRelease.AssetUrl(CacheFileName);
                 var lowerId = Id.ToLowerInvariant();
                 var lowerVersion = Version.ToLowerInvariant();
                 return $"{NuGetConfig.NuGetBaseUrl}/{lowerId}/{lowerVersion}/{lowerId}.{lowerVersion}.nupkg";
@@ -55,5 +61,47 @@ namespace com.IvanMurzak.Unity.MCP.Editor.DependencyResolver
         public string CacheFileName => $"{Id}.{Version}.nupkg";
 
         public override string ToString() => $"{Id} {Version}";
+    }
+
+    /// <summary>The paired fork dependencies are immutable assets of one pinned public release.</summary>
+    public static class HostedDependencyRelease
+    {
+        public const string Repository = "Misaka16608/Unity-MCP";
+        public const string PackageVersion = "8.9.0-request-safety.4";
+        public const string ServerVersion = "9.2.12-request-safety.4";
+
+        public static bool IsHostedPackage(string id, string version)
+            => version == PackageVersion &&
+               (string.Equals(id, "com.IvanMurzak.McpPlugin", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(id, "com.IvanMurzak.McpPlugin.Common", StringComparison.OrdinalIgnoreCase));
+
+        public static string AssetUrl(string name, string? serverVersion = null)
+        {
+            var version = (serverVersion ?? ServerVersion).Trim();
+            var tag = version.StartsWith("v", StringComparison.Ordinal) ? version : "v" + version;
+            return $"https://github.com/{Repository}/releases/download/{tag}/{name}";
+        }
+
+        /// <summary>Reject missing, ambiguous or mismatched digests before installing cached/downloaded packages.</summary>
+        public static void VerifyFile(string path, string assetName, string manifest)
+        {
+            string? expected = null;
+            foreach (var raw in manifest.Split('\n'))
+            {
+                var match = Regex.Match(raw.Trim(), @"^([0-9a-fA-F]{64})\s+\*?(.+)$");
+                if (!match.Success || match.Groups[2].Value != assetName)
+                    continue;
+                if (expected != null)
+                    throw new InvalidDataException($"Duplicate checksum for {assetName}");
+                expected = match.Groups[1].Value;
+            }
+            if (expected == null)
+                throw new InvalidDataException($"Missing checksum for {assetName}");
+            using var input = File.OpenRead(path);
+            using var sha = SHA256.Create();
+            var actual = BitConverter.ToString(sha.ComputeHash(input)).Replace("-", "");
+            if (!string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"SHA256 mismatch for {assetName}");
+        }
     }
 }

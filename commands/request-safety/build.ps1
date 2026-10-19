@@ -1,4 +1,4 @@
-param([switch]$SkipPublish, [switch]$SeedToolProject)
+param([switch]$SkipPublish, [switch]$SeedToolProject, [switch]$ReleaseAssets)
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $buildRoot = Join-Path $repoRoot '.local/request-safety'
@@ -37,6 +37,19 @@ try {
     Invoke-Dotnet -Arguments @('test', 'Unity-MCP-Plugin/Tests~/EngineFree/EngineFree.csproj', '-c', 'Release', '--logger', 'trx', '--results-directory', $evidence)
     & python .github/scripts/check_nuget_gate.py
     if ($LASTEXITCODE -ne 0) { throw 'NuGet generation gate failed.' }
+    if ($ReleaseAssets) {
+        & python (Join-Path $PSScriptRoot 'release_assets.py') check-config
+        if ($LASTEXITCODE -ne 0) { throw 'Release pin validation failed.' }
+        foreach ($rid in 'win-x64', 'win-x86', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-arm64') {
+            Invoke-Dotnet -Arguments @('publish', (Join-Path $server 'com.IvanMurzak.GameDev.MCP.Server.csproj'),
+                '-c', 'Release', '-r', $rid, '--self-contained', 'true',
+                '-p:PublishSingleFile=true', '-p:PublishTrimmed=false', '-p:PublishAot=false',
+                '-p:IncludeNativeLibrariesForSelfExtract=true',
+                '-o', (Join-Path $buildRoot "release-publish/$rid"))
+        }
+        & python (Join-Path $PSScriptRoot 'release_assets.py') assemble
+        if ($LASTEXITCODE -ne 0) { throw 'Release asset validation failed.' }
+    }
     if (!$SkipPublish) {
         # Local artifact generation only; no network publication, deployment or release.
         Invoke-Dotnet -Arguments @('publish', (Join-Path $server 'com.IvanMurzak.GameDev.MCP.Server.csproj'), '-c', 'Release', '-r', 'win-x64', '--self-contained', 'false', '-o', (Join-Path $buildRoot 'publish'))

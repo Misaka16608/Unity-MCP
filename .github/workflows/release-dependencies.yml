@@ -1,0 +1,96 @@
+name: Release paired fork dependencies
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and validate everything without publishing a release
+        type: boolean
+        default: true
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-paired-dependencies
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      tag: ${{ steps.identity.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Guard repository and publication ref
+        shell: bash
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          test "$GITHUB_REPOSITORY" = 'Misaka16608/Unity-MCP'
+          if [ "$DRY_RUN" != true ]; then test "$GITHUB_REF" = refs/heads/main; fi
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Build, test and assemble all seven platform archives
+        shell: pwsh
+        run: ./commands/request-safety/build.ps1 -ReleaseAssets -SkipPublish
+      - name: CLI tests
+        working-directory: cli
+        run: |
+          npm ci
+          npm test
+      - name: Release identity
+        id: identity
+        run: python -c 'import json,os; s=json.load(open("commands/request-safety/sources.json")); print("tag=v"+s["serverVersion"],file=open(os.environ["GITHUB_OUTPUT"],"a"))'
+      - uses: actions/upload-artifact@v6
+        with:
+          name: paired-dependency-release
+          path: .local/request-safety/release-assets/${{ steps.identity.outputs.tag }}/*
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: dependency-test-results
+          path: .local/request-safety/results/*.trx
+          include-hidden-files: true
+
+  publish:
+    if: ${{ !inputs.dry_run }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v7
+        with:
+          name: paired-dependency-release
+          path: assets
+      - name: Verify uploaded artifacts
+        working-directory: assets
+        run: sha256sum --check SHA256SUMS
+      - name: Publish immutable paired release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo 'Release already exists; bump the dependency versions instead of overwriting assets.' >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" assets/* --target "$GITHUB_SHA" --prerelease --draft --title "Paired request-safety dependencies $RELEASE_TAG" --notes-file docs/dev/dependency-release-notes.md
+          gh release edit "$RELEASE_TAG" --draft=false

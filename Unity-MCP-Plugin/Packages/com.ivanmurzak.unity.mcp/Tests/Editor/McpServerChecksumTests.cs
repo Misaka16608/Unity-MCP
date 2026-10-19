@@ -27,7 +27,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests
     /// <para>
     /// The <see cref="LiveV8Sha256Sums"/> fixture is the VERBATIM content of the real <c>v8.0.0</c> release
     /// manifest (the version this plugin pins) at
-    /// https://github.com/IvanMurzak/GameDev-MCP-Server/releases/download/v8.0.0/SHA256SUMS — so the parser is
+    /// https://github.com/Misaka16608/Unity-MCP/releases/download/v8.0.0/SHA256SUMS — so the parser is
     /// proven against the exact two-space coreutils format that production will see, and the win-x64 digest is
     /// the real one (operator-confirmable: <c>gh release download v8.0.0 --pattern gamedev-mcp-server-win-x64.zip</c>
     /// then <c>sha256sum</c> equals <see cref="LiveWinX64Digest"/>). Updating the pinned
@@ -65,7 +65,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests
             // `SHA256SUMS` asset name — so the integrity manifest can never drift from the binary it covers.
             var sumsUrl = McpServerChecksum.Sha256SumsUrl("8.0.0");
             Assert.AreEqual(
-                "https://github.com/IvanMurzak/GameDev-MCP-Server/releases/download/v8.0.0/SHA256SUMS",
+                "https://github.com/Misaka16608/Unity-MCP/releases/download/v8.0.0/SHA256SUMS",
                 sumsUrl);
         }
 
@@ -81,7 +81,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests
         public void Sha256SumsUrl_PrePrefixedVersion_NotDoublePrefixed()
         {
             Assert.AreEqual(
-                "https://github.com/IvanMurzak/GameDev-MCP-Server/releases/download/v8.0.0/SHA256SUMS",
+                "https://github.com/Misaka16608/Unity-MCP/releases/download/v8.0.0/SHA256SUMS",
                 McpServerChecksum.Sha256SumsUrl("v8.0.0"));
         }
 

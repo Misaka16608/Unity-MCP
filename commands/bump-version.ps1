@@ -42,25 +42,25 @@ $ErrorActionPreference = "Stop"
 $VersionFiles = @(
     @{
         Path        = "Installer/Assets/com.IvanMurzak/AI Game Dev Installer/Installer.cs"
-        Pattern     = 'public const string Version = "[\d\.]+";'
+        Pattern     = 'public const string Version = "[\d\.]+(?:-[a-zA-Z0-9\-\.]+)?(?:\+[a-zA-Z0-9\-\.]+)?";'
         Replace     = 'public const string Version = "{VERSION}";'
         Description = "Installer C# version constant"
     },
     @{
         Path        = "Unity-MCP-Plugin/Packages/com.ivanmurzak.unity.mcp/package.json"
-        Pattern     = '"version":\s*"[\d\.]+"'
+        Pattern     = '"version":\s*"[\d\.]+(?:-[a-zA-Z0-9\-\.]+)?(?:\+[a-zA-Z0-9\-\.]+)?"'
         Replace     = '"version": "{VERSION}"'
         Description = "Unity package version"
     },
     @{
         Path        = "Unity-MCP-Plugin/Packages/com.ivanmurzak.unity.mcp/Runtime/UnityMcpPlugin.cs"
-        Pattern     = 'public const string Version = "[\d\.]+";'
+        Pattern     = 'public const string Version = "[\d\.]+(?:-[a-zA-Z0-9\-\.]+)?(?:\+[a-zA-Z0-9\-\.]+)?";'
         Replace     = 'public const string Version = "{VERSION}";'
         Description = "Plugin C# version constant"
     },
     @{
         Path        = "cli/package.json"
-        Pattern     = '"version":\s*"[\d\.]+(-[a-zA-Z0-9\-\.]+)?(\+[a-zA-Z0-9\-\.]+)?"'
+        Pattern     = '"version":\s*"[\d\.]+(?:-[a-zA-Z0-9\-\.]+)?(?:\+[a-zA-Z0-9\-\.]+)?(-[a-zA-Z0-9\-\.]+)?(\+[a-zA-Z0-9\-\.]+)?"'
         Replace     = '"version": "{VERSION}"'
         Description = "CLI npm package version"
     }
@@ -91,7 +91,7 @@ function Get-CurrentVersion {
     }
 
     $content = Get-Content $packageJsonPath -Raw
-    if ($content -match '"version":\s*"([\d\.]+)"') {
+    if ($content -match '"version":\s*"([\d\.]+(?:-[a-zA-Z0-9\-\.]+)?(?:\+[a-zA-Z0-9\-\.]+)?)"') {
         return $Matches[1]
     }
 
@@ -211,7 +211,7 @@ try {
         if (Test-Path $lockFilePath) {
             Write-ColorText "`nUpdating CLI package-lock.json..." "Cyan"
             $lockContent = Get-Content $lockFilePath -Raw
-            $pattern = '("name":\s*"unity-mcp-cli",\s+"version":\s*")[\d\.]+(-[a-zA-Z0-9\-\.]+)?(\+[a-zA-Z0-9\-\.]+)?'
+            $pattern = '("name":\s*"unity-mcp-cli",\s+"version":\s*")[\d\.]+(?:-[a-zA-Z0-9\-\.]+)?(?:\+[a-zA-Z0-9\-\.]+)?(-[a-zA-Z0-9\-\.]+)?(\+[a-zA-Z0-9\-\.]+)?'
             $replacement = "`${1}$NewVersion"
             $newLockContent = [regex]::Replace($lockContent, $pattern, $replacement)
             if ($newLockContent -ne $lockContent) {

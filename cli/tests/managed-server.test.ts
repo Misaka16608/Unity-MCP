@@ -74,10 +74,10 @@ describe('URL + name helpers', () => {
   it('builds the zip name / url / SHA256SUMS url from RID + version', () => {
     expect(serverZipName('win-x64')).toBe('gamedev-mcp-server-win-x64.zip');
     expect(serverZipUrl('win-x64', '9.1.0')).toBe(
-      'https://github.com/IvanMurzak/GameDev-MCP-Server/releases/download/v9.1.0/gamedev-mcp-server-win-x64.zip',
+      'https://github.com/Misaka16608/Unity-MCP/releases/download/v9.1.0/gamedev-mcp-server-win-x64.zip',
     );
     expect(serverShaSumsUrl('9.1.0')).toBe(
-      'https://github.com/IvanMurzak/GameDev-MCP-Server/releases/download/v9.1.0/SHA256SUMS',
+      'https://github.com/Misaka16608/Unity-MCP/releases/download/v9.1.0/SHA256SUMS',
     );
   });
 });

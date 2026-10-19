@@ -65,6 +65,10 @@ jobs:
         with:
           path: Unity-MCP-Plugin/Packages/com.ivanmurzak.unity.mcp
 
+      - name: Require paired dependency release before plugin publication
+        if: github.repository == 'Misaka16608/Unity-MCP' && !inputs.dry_run
+        run: python3 commands/request-safety/release_assets.py verify-remote
+
       - name: Find previous version tag
         id: prev_tag
         shell: bash

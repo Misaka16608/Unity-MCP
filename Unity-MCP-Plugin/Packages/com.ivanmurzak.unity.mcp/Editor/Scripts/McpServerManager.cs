@@ -1,4 +1,4 @@
-﻿/*
+/*
 ┌──────────────────────────────────────────────────────────────────┐
 │  Author: Ivan Murzak (https://github.com/IvanMurzak)             │
 │  Repository: GitHub (https://github.com/IvanMurzak/Unity-MCP)    │
@@ -163,7 +163,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor
         /// <c>v&lt;ServerVersion&gt;</c> release with all 7 RID zips exists on GameDev-MCP-Server
         /// BEFORE cutting a plugin release that pins it — otherwise the download 404s).
         /// </summary>
-        public const string ServerVersion = "9.2.11";
+        public const string ServerVersion = "9.2.12-request-safety.4";
 
         public const string ExecutableName = "gamedev-mcp-server";
 
@@ -331,7 +331,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor
         /// pinned by <see cref="ServerVersion"/> — NEVER the plugin version (the two diverge).
         /// </summary>
         public static string ExecutableZipUrl
-            => $"https://github.com/IvanMurzak/GameDev-MCP-Server/releases/download/{ServerReleaseTag(ServerVersion)}/{ExecutableZipName}";
+            => DependencyResolver.HostedDependencyRelease.AssetUrl(ExecutableZipName, ServerVersion);
 
         #endregion // Binary Metadata
 

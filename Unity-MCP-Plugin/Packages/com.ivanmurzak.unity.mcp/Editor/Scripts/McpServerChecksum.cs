@@ -53,7 +53,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor
         /// drift from the zip tag. Pure string build — unit-testable with no editor.
         /// </summary>
         public static string Sha256SumsUrl(string serverVersion)
-            => $"https://github.com/IvanMurzak/GameDev-MCP-Server/releases/download/{McpServerManager.ServerReleaseTag(serverVersion)}/{Sha256SumsAssetName}";
+            => DependencyResolver.HostedDependencyRelease.AssetUrl(Sha256SumsAssetName, serverVersion);
 
         /// <summary>
         /// The <c>SHA256SUMS</c> manifest URL for the PINNED <see cref="McpServerManager.ServerVersion"/> —

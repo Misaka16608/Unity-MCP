@@ -64,7 +64,7 @@ describe('CLI integration', () => {
     it('shows version with --version', () => {
       const { stdout, exitCode } = runCli(['--version']);
       expect(exitCode).toBe(0);
-      expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
     });
   });
 

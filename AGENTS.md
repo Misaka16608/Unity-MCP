@@ -12,6 +12,16 @@ release pinned by the `ServerVersion` constant in
 from the plugin version). Bumping the consumed server = changing that constant; the pinned
 `v<ServerVersion>` release (with all 7 RID zips) must exist BEFORE a plugin release that pins it.
 
+## Fork dependency distribution
+
+This fork hosts its paired request-safety NuGet packages and seven server RID archives on
+`Misaka16608/Unity-MCP`, release tag `v<custom ServerVersion>`. Ordinary third-party packages
+still use NuGet.org. Run `commands/request-safety/release_assets.py check-config` to detect drift.
+Use the manual `.github/workflows/release-dependencies.yml` (dry run by default); publish the
+complete dependency release before releasing a plugin that pins it. Published assets are immutable.
+See `docs/dev/github-release-hosting.zh-CN.md`. The upstream Docker image is not a distribution
+channel for this fork's custom protocol.
+
 ## Build / run
 
 - Bump version: `.\commands\bump-version.ps1 <version>`.
