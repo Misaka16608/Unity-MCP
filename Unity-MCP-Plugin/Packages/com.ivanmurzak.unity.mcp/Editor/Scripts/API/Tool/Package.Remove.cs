@@ -12,6 +12,7 @@
 using System;
 using System.ComponentModel;
 using System.Threading.Tasks;
+using System.Threading;
 using com.IvanMurzak.McpPlugin;
 using com.IvanMurzak.McpPlugin.Common.Model;
 using com.IvanMurzak.ReflectorNet.Utils;
@@ -56,7 +57,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             [Description("The ID of the package to remove. Example: 'com.unity.textmeshpro'. Do not include version number.")]
             string packageId,
             [RequestID]
-            string? requestId = null
+            string? requestId = null,
+            CancellationToken cancellationToken = default
         )
         {
             if (requestId == null || string.IsNullOrWhiteSpace(requestId))
@@ -70,14 +72,18 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                 ? packageId.Substring(0, packageId.IndexOf('@', StringComparison.OrdinalIgnoreCase))
                 : packageId;
 
-            MainThread.Instance.RunAsync(async () =>
+            _ = Tool_Operation.RunCooperativeAsync(requestId, async token =>
             {
+                token.ThrowIfCancellationRequested();
                 await Task.Yield();
 
                 // First verify the package is installed
                 var listRequest = Client.List(offlineMode: true);
                 while (!listRequest.IsCompleted)
+                {
+                    token.ThrowIfCancellationRequested();
                     await Task.Yield();
+                }
 
                 if (listRequest.Status == StatusCode.Success)
                 {
@@ -102,10 +108,13 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                     }
                 }
 
+                token.ThrowIfCancellationRequested();
                 var removeRequest = Client.Remove(cleanPackageId);
 
                 while (!removeRequest.IsCompleted)
+                {
                     await Task.Yield();
+                }
 
                 if (removeRequest.Status == StatusCode.Failure)
                 {
@@ -125,7 +134,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                     "remove",
                     expectedResult: true
                 );
-            });
+            }, cancellationToken);
 
             return ResponseCallTool.Processing($"Removing package '{cleanPackageId}'. Waiting for package resolution and potential domain reload...").SetRequestID(requestId);
         }

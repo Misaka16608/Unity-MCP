@@ -193,6 +193,128 @@ namespace com.IvanMurzak.Unity.MCP.EngineFree.Tests
         }
 
         [Fact]
+        public async Task ProcessingCompletion_IsPersistedAndWakesOperation()
+        {
+            using var directory = new TestDirectory();
+            using var store = new DurableOperationStore(directory.Path);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var operation = store.Start("identity", "processing", "args", async (token, markStarted) =>
+            {
+                markStarted();
+                started.SetResult(true);
+                return await store.WaitForExternalCompletion("identity", "processing", token);
+            });
+
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal("awaiting-completion", (await WaitFor(store, "identity", "processing", s => s.State == "awaiting-completion")).State);
+            var requestId = DurableOperationStore.CompletionRequestId("identity", "processing");
+            Assert.True(store.CompleteExternal(requestId, "{\"ok\":true}", succeeded: true, error: null));
+            var completed = await WaitFor(store, "identity", "processing", s => s.State == "succeeded");
+            Assert.Equal("{\"ok\":true}", completed.ResultJson);
+            Assert.False(store.CompleteExternal(requestId, "late", succeeded: true, error: null));
+        }
+
+        [Fact]
+        public async Task ProcessingCompletion_CanBeCommittedAfterStoreReopen()
+        {
+            using var directory = new TestDirectory();
+            var requestId = DurableOperationStore.CompletionRequestId("identity", "reload");
+            using (var old = new DurableOperationStore(directory.Path))
+            {
+                var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                old.Start("identity", "reload", "args", async (token, markStarted) =>
+                {
+                    markStarted();
+                    started.SetResult(true);
+                    return await old.WaitForExternalCompletion("identity", "reload", token);
+                });
+                await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                await WaitFor(old, "identity", "reload", s => s.State == "awaiting-completion");
+            }
+
+            using var reopened = new DurableOperationStore(directory.Path);
+            Assert.Equal("awaiting-completion", reopened.Get("identity", "reload").State);
+            Assert.True(reopened.CompleteExternal(requestId, "reloaded", succeeded: true, error: null));
+            Assert.Equal("reloaded", reopened.Get("identity", "reload").ResultJson);
+        }
+
+        [Fact]
+        public async Task ProcessingCancel_WaitsForActualCompletion_AndRetainsDurableToken()
+        {
+            using var directory = new TestDirectory();
+            using var store = new DurableOperationStore(directory.Path);
+            store.Start("identity", "pending", "args", async (token, started) =>
+            {
+                started();
+                return await store.WaitForExternalCompletion("identity", "pending", token);
+            });
+            await WaitFor(store, "identity", "pending", s => s.State == "awaiting-completion");
+            var requestId = DurableOperationStore.CompletionRequestId("identity", "pending");
+            var detachedToken = store.CompletionCancellationToken(requestId, CancellationToken.None);
+            var snapshot = store.Cancel("identity", "pending");
+            Assert.True(detachedToken.IsCancellationRequested);
+            Assert.True(snapshot.CancellationRequested);
+            Assert.Equal("awaiting-completion", snapshot.State);
+            Assert.True(store.CompleteExternal(requestId, "native operation finished", true, null));
+            Assert.Equal("succeeded", store.Get("identity", "pending").State);
+        }
+
+        [Fact]
+        public async Task ProcessingCancel_CooperativeAcknowledgmentIsTerminal()
+        {
+            using var directory = new TestDirectory();
+            using var store = new DurableOperationStore(directory.Path);
+            store.Start("identity", "pending", "args", async (token, started) =>
+            {
+                started();
+                return await store.WaitForExternalCompletion("identity", "pending", token);
+            });
+            await WaitFor(store, "identity", "pending", s => s.State == "awaiting-completion");
+            store.Cancel("identity", "pending");
+            var requestId = DurableOperationStore.CompletionRequestId("identity", "pending");
+            Assert.True(store.CompleteExternal(requestId, "null", false, "Stopped before mutation", canceled: true));
+            Assert.Equal("canceled", store.Get("identity", "pending").State);
+            Assert.False(store.CompleteExternal(requestId, "late", true, null));
+        }
+
+        [Fact]
+        public async Task ProcessingCompletion_BeforeWaitOrDuringReloadDispatch_IsRetained()
+        {
+            using var directory = new TestDirectory();
+            var hold = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var old = new DurableOperationStore(directory.Path);
+            old.Start("identity", "early", "args", (_, started) => { started(); return hold.Task; });
+            await WaitFor(old, "identity", "early", s => s.ExecutionStarted);
+            old.Dispose();
+            using var reopened = new DurableOperationStore(directory.Path);
+            Assert.Equal("unknown", reopened.Get("identity", "early").State);
+            var requestId = DurableOperationStore.CompletionRequestId("identity", "early");
+            Assert.True(reopened.CompleteExternal(requestId, "authoritative notification", true, null));
+            Assert.Equal("authoritative notification", await reopened.WaitForExternalCompletion("identity", "early", CancellationToken.None));
+            hold.SetResult("old dispatch result");
+            Assert.Equal("authoritative notification", reopened.Get("identity", "early").ResultJson);
+        }
+
+        [Fact]
+        public async Task CancellationCallback_CanQueryLedgerWithoutHoldingPersistenceLock()
+        {
+            using var directory = new TestDirectory();
+            using var store = new DurableOperationStore(directory.Path);
+            var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            store.Start("identity", "callback", "args", async (token, started) =>
+            {
+                started();
+                using var registration = token.Register(() => Task.Run(() => store.Get("identity", "callback")).GetAwaiter().GetResult());
+                ready.SetResult(true);
+                await Task.Delay(Timeout.Infinite, token);
+                return null;
+            });
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Task.Run(() => store.Cancel("identity", "callback")).WaitAsync(TimeSpan.FromSeconds(5));
+            await WaitFor(store, "identity", "callback", s => s.State == "canceled");
+        }
+
+        [Fact]
         public async Task DurableId_ScopedByIdentityAndProject_AndCompletedStateSurvivesReload()
         {
             using var directory = new TestDirectory();

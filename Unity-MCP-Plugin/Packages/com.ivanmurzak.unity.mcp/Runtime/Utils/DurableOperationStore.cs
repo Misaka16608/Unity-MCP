@@ -25,6 +25,7 @@ namespace com.IvanMurzak.Unity.MCP.Runtime.Utils
     {
         public string OperationId { get; set; } = "";
         public string State { get; set; } = "queued";
+        public string? CompletionRequestId { get; set; }
         public bool ExecutionStarted { get; set; }
         public bool MainThreadStarted { get; set; }
         public bool CancellationRequested { get; set; }
@@ -32,14 +33,11 @@ namespace com.IvanMurzak.Unity.MCP.Runtime.Utils
         public string? Error { get; set; }
         public string QueryTool { get; set; } = "tool-operation-status";
     }
-    public sealed class OperationOutcomeUnknownException : Exception
-    {
-        public OperationOutcomeUnknownException(string message) : base(message) { }
-    }
-
     /// <summary>
     /// A project-local durable admission ledger. It never resumes side effects after a reload.
     /// Library/mcp-operations must be retained while an operation's outcome is unresolved.
+    /// Processing operations may remain awaiting-completion across a reload and are completed
+    /// by a later notification carrying their persisted completion request ID.
     /// </summary>
     public sealed class DurableOperationStore : IDisposable
     {
@@ -51,7 +49,17 @@ namespace com.IvanMurzak.Unity.MCP.Runtime.Utils
         private sealed class Active
         {
             public readonly CancellationTokenSource Cancellation = new();
+            private bool _disposed;
+            public void Cancel()
+            {
+                lock (this) { if (!_disposed) Cancellation.Cancel(); }
+            }
+            public void Dispose()
+            {
+                lock (this) { _disposed = true; Cancellation.Dispose(); }
+            }
         }
+        private readonly Dictionary<string, TaskCompletionSource<string?>> _externalCompletions = new(StringComparer.Ordinal);
         private readonly string _directory;
         private readonly object _gate = new();
         private readonly Dictionary<string, Active> _active = new(StringComparer.Ordinal);
@@ -103,7 +111,15 @@ namespace com.IvanMurzak.Unity.MCP.Runtime.Utils
                     if (previous.Fingerprint != fingerprint) throw new InvalidOperationException("Operation ID already belongs to different tool arguments.");
                     return Copy(previous.Snapshot);
                 }
-                var record = new Record { Fingerprint = fingerprint, Snapshot = new OperationSnapshot { OperationId = id } };
+                var record = new Record
+                {
+                    Fingerprint = fingerprint,
+                    Snapshot = new OperationSnapshot
+                    {
+                        OperationId = id,
+                        CompletionRequestId = CompletionRequestId(identity, id)
+                    }
+                };
                 Save(path, record); // commit admission BEFORE scheduling any side effects
                 var active = new Active();
                 _active.Add(path, active);
@@ -135,12 +151,11 @@ namespace com.IvanMurzak.Unity.MCP.Runtime.Utils
             {
                 Finish(path, active, "canceled", null, "Canceled. Any side effects from already started work must be inspected; cancellation does not roll them back.");
             }
-            catch (OperationOutcomeUnknownException ex) { Finish(path, active, "unknown", null, ex.Message); }
             catch (Exception ex) { Finish(path, active, "failed", null, ex.Message); }
             finally
             {
                 lock (_gate) { _active.Remove(path); }
-                active.Cancellation.Dispose();
+                active.Dispose();
             }
         }
         private void MarkStarted(string path, Active active)
@@ -160,12 +175,70 @@ namespace com.IvanMurzak.Unity.MCP.Runtime.Utils
             {
                 if (_disposed) return; // owner lease released; a new domain owns recovery
                 var record = Read(path);
+                if (IsTerminal(record.Snapshot.State)) return;
                 if (active.Cancellation.IsCancellationRequested && !record.Snapshot.ExecutionStarted)
                     state = "canceled";
                 record.Snapshot.State = state;
                 record.Snapshot.ResultJson = result;
                 record.Snapshot.Error = error;
                 Save(path, record);
+            }
+        }
+
+        /// <summary>Waits for a tool that returned Processing and completes from its later notification.</summary>
+        public async Task<string?> WaitForExternalCompletion(string identity, string id, CancellationToken token)
+        {
+            TaskCompletionSource<string?> completion;
+            var path = PathFor(identity, id);
+            lock (_gate)
+            {
+                ThrowIfDisposed();
+                var record = Read(path);
+                if (IsTerminal(record.Snapshot.State)) return record.Snapshot.ResultJson;
+                record.Snapshot.State = "awaiting-completion";
+                Save(path, record);
+                if (!_externalCompletions.TryGetValue(path, out completion!))
+                {
+                    completion = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    _externalCompletions.Add(path, completion);
+                }
+            }
+
+            // Cancellation requests do not prove that detached native work stopped. Only
+            // its final notification (or an explicit cooperative acknowledgment) does.
+            var result = await completion.Task.ConfigureAwait(false);
+            lock (_gate)
+            {
+                var final = Read(path).Snapshot;
+                if (final.State == "failed") throw new InvalidOperationException(final.Error ?? "The target operation failed.");
+                if (final.State == "canceled") throw new OperationCanceledException(token);
+                return result;
+            }
+        }
+
+        /// <summary>
+        /// Commits a later Processing completion. The request ID is deterministic and persisted in the admission record,
+        /// so this also works after a Unity domain reload when no in-memory operation is running.
+        /// </summary>
+        public bool CompleteExternal(string completionRequestId, string resultJson, bool succeeded, string? error, bool canceled = false)
+        {
+            lock (_gate)
+            {
+                ThrowIfDisposed();
+                foreach (var path in Directory.GetFiles(_directory, "*.json"))
+                {
+                    if (Path.GetFileNameWithoutExtension(path).Length != 64) continue;
+                    var record = Read(path);
+                    if (!string.Equals(record.Snapshot.CompletionRequestId, completionRequestId, StringComparison.Ordinal)) continue;
+                    if (IsTerminal(record.Snapshot.State) && record.Snapshot.State != "unknown") return false;
+                    record.Snapshot.State = canceled ? "canceled" : succeeded ? "succeeded" : "failed";
+                    record.Snapshot.ResultJson = resultJson;
+                    record.Snapshot.Error = error;
+                    Save(path, record);
+                    if (_externalCompletions.Remove(path, out var completion)) completion.TrySetResult(resultJson);
+                    return true;
+                }
+                return false;
             }
         }
         public OperationSnapshot Get(string identity, string id)
@@ -185,21 +258,39 @@ namespace com.IvanMurzak.Unity.MCP.Runtime.Utils
         }
         public OperationSnapshot Cancel(string identity, string id)
         {
+            Active? active = null;
+            OperationSnapshot snapshot;
             lock (_gate)
             {
                 ThrowIfDisposed();
                 var path = PathFor(identity, id);
                 var record = Read(path);
-                if (record.Snapshot.State == "queued" || record.Snapshot.State == "running")
+                if (record.Snapshot.State == "queued" || record.Snapshot.State == "running" || record.Snapshot.State == "awaiting-completion")
                 {
                     record.Snapshot.CancellationRequested = true;
                     Save(path, record);
-                    if (_active.TryGetValue(path, out var active)) active.Cancellation.Cancel();
+                    _active.TryGetValue(path, out active);
                 }
-                return Copy(record.Snapshot);
+                snapshot = Copy(record.Snapshot);
+            }
+            // User callbacks must not run under the persistence lock.
+            active?.Cancel();
+            return snapshot;
+        }
+        public CancellationToken CompletionCancellationToken(string completionRequestId, CancellationToken fallback)
+        {
+            lock (_gate)
+            {
+                ThrowIfDisposed();
+                foreach (var pair in _active)
+                    if (Read(pair.Key).Snapshot.CompletionRequestId == completionRequestId)
+                        return pair.Value.Cancellation.Token;
+                return fallback;
             }
         }
         private string PathFor(string identity, string id) => Path.Combine(_directory, Digest(identity.Length + ":" + identity + id) + ".json");
+        public static string CompletionRequestId(string identity, string id) => "durable-completion:" + Digest(identity.Length + ":" + identity + id);
+        private static bool IsTerminal(string state) => state == "succeeded" || state == "canceled" || state == "failed" || state == "unknown";
         public static string Digest(string value)
         {
             using var sha = SHA256.Create();
@@ -222,7 +313,7 @@ namespace com.IvanMurzak.Unity.MCP.Runtime.Utils
         {
             var record = JsonSerializer.Deserialize<Record>(File.ReadAllText(path)) ?? throw new InvalidDataException("Invalid operation ledger.");
             if (string.IsNullOrEmpty(record.Fingerprint) || record.Snapshot == null || string.IsNullOrWhiteSpace(record.Snapshot.OperationId)
-                || !(record.Snapshot.State == "queued" || record.Snapshot.State == "running" || record.Snapshot.State == "unknown"
+                    || !(record.Snapshot.State == "queued" || record.Snapshot.State == "running" || record.Snapshot.State == "awaiting-completion" || record.Snapshot.State == "unknown"
                     || record.Snapshot.State == "succeeded" || record.Snapshot.State == "canceled" || record.Snapshot.State == "failed"))
                 throw new InvalidDataException("Invalid operation ledger record.");
             return record;
@@ -277,13 +368,17 @@ namespace com.IvanMurzak.Unity.MCP.Runtime.Utils
         }
         public void Dispose()
         {
+            Active[] active;
             lock (_gate)
             {
                 if (_disposed) return;
                 _disposed = true;
-                foreach (var active in _active.Values) active.Cancellation.Cancel();
+                active = _active.Values.ToArray();
+                foreach (var completion in _externalCompletions.Values) completion.TrySetCanceled();
+                _externalCompletions.Clear();
                 _lease.Dispose();
             }
+            foreach (var execution in active) execution.Cancel();
         }
     }
 }

@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using com.IvanMurzak.CodeExec;
 using com.IvanMurzak.CodeExec.Roslyn;
@@ -72,7 +73,9 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             "- `AIGD.ComponentRef` — passes a `ComponentRef` POCO.\n" +
             "- `AIGD.ObjectRef` — passes a base `ObjectRef` POCO.")]
         [Description("Compiles and runs C# in the Unity Editor: plain statements with the last expression as the result " +
-            "(own usings, local classes, await allowed), or a declared class 'className' with static method 'methodName'.")]
+            "(own usings, local classes, await allowed), or a declared class 'className' with static method 'methodName'. " +
+            "Snippets receive cancellationToken; observe it before writes and pass it to async waits. " +
+            "Full methods can declare a CancellationToken parameter in parameters. Durable operations await the actual task completion.")]
         public static async Task<SerializedMember?> Execute
         (
             [Description("C# code. Snippet: 'var go = GameObject.Find(\"Player\");\\ngo.transform.position'. " +
@@ -92,7 +95,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             [Description("Extra namespaces for snippet mode, e.g. [\"MyGame.Gameplay\"].")]
             string[]? usings = null,
             [Description("Helper .cs files or folders (recursive) compiled with the code, relative to <Project>/.ai-game-dev/snippets.")]
-            string[]? include = null
+            string[]? include = null,
+            CancellationToken cancellationToken = default
         )
         {
             if (string.IsNullOrEmpty(csharpCode))
@@ -107,28 +111,43 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                 Include = include ?? Array.Empty<string>(),
                 Parameters = parameters?.Select((p, i) => new SnippetParameter(ParameterName(p, i), ParameterType(p, i), null)).ToList()
                     ?? (IReadOnlyList<SnippetParameter>)Array.Empty<SnippetParameter>(),
-                TimeoutMs = 120_000,
+                // Durable operations have a query handle: ending an await would lose the
+                // actual result while user code may still be mutating the project.
+                TimeoutMs = Tool_Operation.IsDurableExecution ? 0 : 120_000,
             };
             if (!isMethodBody && FullSourceEntryType(csharpCode, className, methodName) is { } entryType)
             {
                 request.EntryType = entryType;
                 request.EntryMethod = methodName;
             }
+            var declared = request.Parameters.ToList();
+            if (request.EntryType == null)
+            {
+                if (declared.Any(p => p.Name == "cancellationToken"))
+                    throw new ArgumentException("cancellationToken is reserved for the injected cancellation token.");
+                declared.Add(new SnippetParameter("cancellationToken", typeof(CancellationToken), cancellationToken));
+                request.Parameters = declared;
+            }
             var prepared = Runner.Value.Prepare(request);
             if (!prepared.Succeeded)
                 throw new Exception(Describe(Runner.Value.Run(prepared))); // Run only returns the failure: no main-thread hop
 
             // Unity object references deserialize and the snippet runs on the main thread; awaits inside resume there.
-            return await MainThread.Instance.RunAsync(() => RunOnMainThread(prepared, parameters)).Unwrap();
+            cancellationToken.ThrowIfCancellationRequested();
+            return await MainThread.Instance.RunAsync(() => RunOnMainThread(prepared, parameters, cancellationToken)).Unwrap();
         }
 
-        static async Task<SerializedMember?> RunOnMainThread(PreparedSnippet prepared, SerializedMemberList? parameters)
+        static async Task<SerializedMember?> RunOnMainThread(PreparedSnippet prepared, SerializedMemberList? parameters, CancellationToken cancellationToken)
         {
             var logger = UnityLoggerFactory.LoggerFactory.CreateLogger("Tool_Script.Execute");
             var reflector = UnityMcpPluginEditor.Instance.Reflector ?? throw new Exception("Reflector is not available.");
-            if (parameters != null)
-                prepared = prepared.WithValues(parameters.Select(p => reflector.Deserialize(data: p, logger: logger)).ToList());
+            var values = parameters?.Select((p, i) => ParameterType(p, i) == typeof(CancellationToken)
+                ? (object)cancellationToken : reflector.Deserialize(data: p, logger: logger)).ToList() ?? new List<object?>();
+            if (prepared.Request.EntryType == null) values.Add(cancellationToken);
+            prepared = prepared.WithValues(values);
 
+            // The snippet observes its injected token. Keep awaiting the real task so
+            // a non-cooperative snippet is never reported as stopped while still running.
             var result = await Runner.Value.RunAsync(prepared);
             if (!result.Success)
                 throw new Exception(Describe(result));

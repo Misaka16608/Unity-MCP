@@ -22,6 +22,7 @@ using com.IvanMurzak.McpPlugin.AgentConfig.Impl;
 using com.IvanMurzak.McpPlugin.Common;
 using com.IvanMurzak.McpPlugin.Common.Model;
 using com.IvanMurzak.Unity.MCP.Utils;
+using com.IvanMurzak.Unity.MCP.Editor.API;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using R3;
@@ -287,7 +288,13 @@ namespace com.IvanMurzak.Unity.MCP
             => ((UnityMcpPlugin)Instance).IsConnected;
 
         public static new Task NotifyToolRequestCompleted(RequestToolCompletedData request, CancellationToken cancellationToken = default)
-            => ((UnityMcpPlugin)Instance).NotifyToolRequestCompleted(request, cancellationToken);
+        {
+            // Persist durable-operation completions before forwarding them. This also runs after
+            // a domain reload, when the original in-memory Task no longer exists.
+            if (request.Result != null && Tool_Operation.TryCompleteExternal(request.RequestId, request.Result))
+                return Task.CompletedTask;
+            return ((UnityMcpPlugin)Instance).NotifyToolRequestCompleted(request, cancellationToken);
+        }
 
         public static IDisposable SubscribeOnChanged(Action<UnityConnectionConfig> action, bool invokeImmediately = true)
         {

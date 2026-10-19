@@ -4,7 +4,7 @@
 Packages/com.ivanmurzak.unity.mcp/
 ├── Runtime/
 │   ├── UnityMcpPluginRuntime.cs      # Runtime singleton (+ .Static.cs)
-│   ├── Data/                         # ObjectRef hierarchy, GameObjectData, etc.
+│   ├── Data/                         # ObjectRef hierarchy and remaining data models.
 │   ├── Converter/                    # Json/ and Reflection/ converters
 │   ├── Logger/                       # UnityLogger, factory, provider
 │   ├── Extensions/                   # Extension methods

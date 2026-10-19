@@ -10,6 +10,7 @@
 
 #nullable enable
 using System.ComponentModel;
+using System.Threading;
 using System.Threading.Tasks;
 using com.IvanMurzak.McpPlugin;
 using com.IvanMurzak.McpPlugin.Common.Model;
@@ -61,7 +62,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                 "Local path 'file:../MyPackage'.")]
             string packageId,
             [RequestID]
-            string? requestId = null
+            string? requestId = null,
+            CancellationToken cancellationToken = default
         )
         {
             if (requestId == null || string.IsNullOrWhiteSpace(requestId))
@@ -70,14 +72,18 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
             if (string.IsNullOrWhiteSpace(packageId))
                 return ResponseCallTool.Error(Error.PackageIdentifierIsEmpty()).SetRequestID(requestId);
 
-            MainThread.Instance.RunAsync(async () =>
+            _ = Tool_Operation.RunCooperativeAsync(requestId, async token =>
             {
+                token.ThrowIfCancellationRequested();
                 await Task.Yield();
+                token.ThrowIfCancellationRequested();
 
                 var addRequest = Client.Add(packageId);
 
                 while (!addRequest.IsCompleted)
+                {
                     await Task.Yield();
+                }
 
                 var success = addRequest.Status == StatusCode.Success;
                 var packageName = success ? addRequest.Result.name : packageId;
@@ -103,7 +109,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.API
                     "add",
                     expectedResult: true
                 );
-            });
+            }, cancellationToken);
 
             return ResponseCallTool.Processing($"Adding package '{packageId}'. Waiting for package resolution and potential domain reload...").SetRequestID(requestId);
         }

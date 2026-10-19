@@ -8,4 +8,4 @@ ObjectRef (base — contains InstanceID)
 └── SceneRef (+ Path, BuildIndex)
 ```
 
-Supporting types: `GameObjectData`, `ComponentData`, `SceneData`, `GameObjectMetadata`, plus `*Shallow` and `*List` variants. All use `[JsonPropertyName]` and implement `IsValid(out string? error)`.
+`AssetObjectRef` identifies an asset by path. Object references use `[JsonPropertyName]` for their serialized fields. Scene and object queries are exposed through RQL; the fork's old prefab snapshot DTOs have been removed.

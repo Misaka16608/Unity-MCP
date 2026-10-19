@@ -230,3 +230,42 @@ Running editors/servers were not forcibly restarted during migration. Restart ea
 The downloaded public Windows x64 archive also passed SHA256 verification, extraction and an isolated `/help` HTTP 200 readiness check, after which only the smoke-test process was stopped. Evidence: `.local/request-safety/public-release/smoke-result.json`. Final four-project DLL/cache/override verification: `.local/request-safety/hosted-project-verification.json`.
 
 All six full-source builds were repeated against the actual published DLLs and passed; logs: `.local/request-safety/public-compile-<2021|2022>-<DependencyResolver|Runtime|Editor>.log`.
+
+## 2026-10-19 — Prefab reader removal and durable completion
+
+Removed the fork-only `assets-prefab-get-data` tool, its generated skill, exclusive
+snapshot DTOs and the special RQL result conversion. Other custom tools remain.
+Historical integration results above describe their original revisions and have
+not been rewritten as evidence for this change.
+
+Durable admissions now persist completion request IDs. Delayed `Processing`
+notifications commit results locally, survive domain reloads, and cannot overwrite
+terminal outcomes. An authoritative notification can resolve a dispatch interrupted
+by reload without replaying the operation. Cancellation remains a request until
+acknowledged: native package mutations already started are observed to completion.
+Scripts receive a cooperative token and durable scripts await their actual task.
+Pending producers that rely only on SessionState can still lose their notification
+after a full editor exit; see README.md for the remaining recovery limits.
+
+Verification for this revision:
+
+- Restored dependencies and explicitly rebuilt the EngineFree assembly from the
+  current source, then invoked VSTest on that new DLL: **73 passed, 0 failed**.
+  Six added cases cover completion persistence, reopening a pending ledger,
+  cancellation acknowledgment, detached token lifetime, notifications racing
+  dispatch/reload, and cancellation callbacks reading the ledger without deadlock.
+- Compiled all Runtime and Editor source against the installed Unity 2021 and
+  2022 assemblies and published fork dependencies: **four builds passed**. Each
+  Runtime build reported one existing warning; each Editor build reported eleven
+  existing warnings. No Unity Test Runner or live-editor integration run is
+  claimed for this revision.
+- Dependency release configuration and `git diff --check` passed. No paired NuGet
+  or server release change is required by this plugin source update.
+
+Earlier `dotnet test --no-restore` output did not establish that a new test DLL
+was built; running the previous DLL likewise did not validate these changes.
+The fresh build and test run above supersede that verification claim.
+
+Local evidence: `.local/request-safety/commit-test-results/commit-enginefree.trx`,
+`.local/request-safety/commit-compile-2021-Editor.log`, and
+`.local/request-safety/commit-compile-2022-Editor.log`.

@@ -90,14 +90,14 @@ accepting call returns a queryable handle without waiting for the target tool:
 
 ```json
 {
-  "operationId": "asset-refresh-20261004-001",
-  "toolName": "assets-refresh",
-  "argumentsJson": "{}"
+  "operationId": "script-20261019-001",
+  "toolName": "script-execute",
+  "argumentsJson": "{\"csharpCode\":\"await Task.Delay(1000, cancellationToken); 42\"}"
 }
 ```
 
 Use the exact registered target name and arguments for your project. Query
-`tool-operation-status` with `{"operationId":"asset-refresh-20261004-001"}`;
+`tool-operation-status` with `{"operationId":"script-20261019-001"}`;
 use a **new MCP request ID for each poll**. Cancel through `tool-operation-cancel`.
 Reuse the stable operation ID and unchanged arguments after an accepting-call
 timeout or reconnect. If even the handle response was lost, query that ID first.
@@ -112,13 +112,38 @@ state fails closed. Partial `.tmp` writes are ignored. Keep this directory while
 any outcome is unresolved; deleting it discards deduplication history. No
 automatic journal cleanup is performed.
 
-States are `queued`, `running`, `succeeded`, `failed`, `canceled`, and `unknown`.
+States are `queued`, `running`, `awaiting-completion`, `succeeded`, `failed`, `canceled`, and `unknown`.
 `ExecutionStarted` records entry into target dispatch; `MainThreadStarted`
 records entry into Unity work. `running` can include waiting for Unity's main
 thread. Started synchronous work may still succeed after cancellation. `unknown`
 requires inspecting outputs before intentionally choosing a different ID.
-Targets returning legacy `Processing` notifications are recorded as unknown,
-not as a fabricated completion. No completion notification is promised.
+Targets returning `Processing` notifications enter `awaiting-completion`; the
+later `NotifyToolRequestCompleted` result is committed by the durable request ID,
+including after a domain reload. An authoritative late notification can also
+resolve `unknown` if reload interrupted dispatch before `Processing` was saved.
+Duplicate notifications cannot overwrite a final success, failure or cancellation.
+Notifications are consumed locally before hub delivery, so persistence does not
+depend on an MCP client connection.
+
+Cancellation sets `CancellationRequested`; `awaiting-completion` remains pending
+until the tool acknowledges stopping or reports its actual result. Package tools
+check cancellation before `Client.Add` / `Client.Remove`; Unity does not provide
+an abort API for these native requests, so once started they are observed to
+completion even after cancellation. Detached package tools retain the operation's
+token after returning `Processing`.
+
+`script-execute` snippets receive a reserved `cancellationToken` variable. Pass
+it to async waits and check it before side effects. Full-source entry methods can
+declare a `System.Threading.CancellationToken` parameter and list that parameter
+in `parameters`; its value is injected. Durable scripts await the real task with
+no result-wait timeout; code that ignores cancellation can keep running. Stopping
+the editor/domain still leaves interrupted execution `unknown`, without replay.
+
+The journal persists across editor restarts, but a tool's later notification is
+still required for a pending `Processing` result. Upstream producers using only
+Unity `SessionState` cannot recover that notification after a full editor exit.
+Such operations can remain unresolved and must be inspected; this ledger never
+fabricates a completion or reruns side effects.
 
 ## Unity checks
 

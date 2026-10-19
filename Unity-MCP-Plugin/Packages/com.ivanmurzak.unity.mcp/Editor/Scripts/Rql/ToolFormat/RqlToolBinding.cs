@@ -307,16 +307,6 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Rql.ToolFormat
                     return ResponseCallTool.Success(s);
                 case SerializedMember member:
                     return ResponseCallTool.Success(Render(member));
-                case AIGD.PrefabData prefab:
-                    // Preserve the hierarchy reader's JSON converters and inline children.
-                    // Generic RQL presentation expands System.Type and replaces child DTOs with handles.
-                    return com.IvanMurzak.ReflectorNet.Utils.MainThread.Instance.Run(() =>
-                    {
-                        var reflector = UnityMcpPluginEditor.Instance.Reflector
-                            ?? throw new InvalidOperationException("Reflector is not available.");
-                        return ResponseCallTool.Success(_compact.Render(JsonSerializer.SerializeToNode(
-                            prefab, reflector.JsonSerializerOptions)));
-                    });
                 default:
                     return com.IvanMurzak.ReflectorNet.Utils.MainThread.Instance.Run(() =>
                     {
