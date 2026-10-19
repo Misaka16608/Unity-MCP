@@ -1,4 +1,4 @@
-# Local request execution safety repair
+# Request execution safety dependencies
 
 This repair prevents a delivered MCP write from being retransmitted when a Unity
 callback is delayed. It also provides durable IDs for work that outlives an MCP
@@ -16,8 +16,8 @@ pwsh -NoProfile -File commands/request-safety/build.ps1 -SeedToolProject
 
 The script downloads official source archives at the commits in `sources.json`,
 checks original file hashes, applies the tracked patches, checks patched hashes,
-builds the paired packages, runs 15 safety tests, 120 existing server regression
-tests and 61 EngineFree tests, checks the dependency generation gate, and builds
+builds the paired packages, runs 15 safety tests, 123 existing server regression
+tests and 67 EngineFree tests, checks the dependency generation gate, and builds
 the local Windows server. `-SkipPublish` skips generating the server executable;
 `publish` here is a local .NET build command, with no upload or deployment.
 
@@ -25,23 +25,34 @@ All scratch outputs are under `.local/request-safety/`:
 
 - `deps/`: prepared upstream sources. Existing changed source is rejected instead
   of overwritten. Preserve it before preparing a different patch revision.
-- `feed/`: unpublished `8.8.0-request-safety.3` Common/plugin packages.
+- `feed/`: `8.9.0-request-safety.4` Common/plugin packages.
 - `nuget/<source-manifest-digest>/`: isolated restore cache for the exact patch.
-- `publish/gamedev-mcp-server.exe`: host `9.2.11-request-safety.3`, framework dependent.
+- `publish/gamedev-mcp-server.exe`: host `9.2.12-request-safety.4`, framework dependent.
 - `results/`: TRX results and optional Unity source compilation log.
 
 `-SeedToolProject` updates only this repository's `Unity-MCP-Plugin` DLL drops,
 installed manifest and NuGet cache. It never connects to an editor. These paired
 DLLs are tracked because the tool project already tracks its dependency drops.
-The patched API is `2.0.0-request-safety.3`; its handshake rejects the released
-server's API. Before starting a future isolated editor/server, explicitly set
-`UNITY_MCP_SERVER_PATH` to the absolute `publish/gamedev-mcp-server.exe` path.
-The released download pin is retained; no nonexistent GitHub release is assumed.
+The patched API is `2.0.0-request-safety.3`; pair it with this fork's server.
 
-The prerelease packages are **local only**. The existing release and chain CI
-must be adapted to build this patch or consume an approved matching dependency
-release before publishing it. Do not substitute released 8.8.0 packages or an
-unpatched chain feed: the new source requires the repaired execution APIs.
+## Distribution
+
+The two custom packages and seven self-contained server archives share the public
+`Misaka16608/Unity-MCP` release `v9.2.12-request-safety.4`, with a `SHA256SUMS`
+manifest and pinned source provenance. Ordinary NuGet dependencies remain on NuGet.org.
+The editor and CLI download the paired server from that release. For local development,
+`UNITY_MCP_SERVER_PATH` still selects a locally built server.
+
+Build all release assets with `build.ps1 -ReleaseAssets -SkipPublish`, then use the
+manual `release-dependencies.yml` workflow (dry run by default). Published assets
+must not be overwritten. [Full publication and migration procedure](../../docs/dev/github-release-hosting.zh-CN.md).
+For an existing project, update its UPM package/dependencies first, then run
+`use-hosted-release.py --project <path>` to plan removal of the old override;
+`--apply` saves an exact `.env` backup before changing it.
+
+Clean dotnet consumers can run `release_assets.py fetch-packages` and add
+`.local/request-safety/feed` as `RestoreAdditionalProjectSources`. A chain feed must
+retain this patch's execution APIs and the matching API handshake.
 
 On this Windows sandbox, the build uses a bounded-purpose loopback NuGet proxy
 (`127.0.0.1:18763`) whose upstream GETs use Node's verified HTTPS. The HTTP exception

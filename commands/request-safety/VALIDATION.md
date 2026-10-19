@@ -200,3 +200,33 @@ Rollback records for this upgrade:
   `.local/request-safety/project-repair/a1b67246cbe34bd1bbb12fbb779a1ea4/`
 - Prior project .env launch overrides:
   `.local/request-safety/server-repair/31056fca89464b368cab24333964353b/`
+
+
+## 2026-10-19 upstream merge and unified dependency release
+
+- Upstream Unity-MCP: `3ff3f1cb3739e6202e72de09cfbcb66e125cb0a5`.
+- Official MCP-Plugin-dotnet source: `67d8cf1df0558c0749c4a3b78bc62a6c890596d8` (8.9.0).
+- Official GameDev-MCP-Server source: `c5c470dab6911f379d386b46f723641a3db71e5a` (9.2.12).
+- Paired packages: `8.9.0-request-safety.4`; paired server: `9.2.12-request-safety.4`.
+- API remains `2.0.0-request-safety.3`; resolver gate is now `UNITY_MCP_DEPS_13`.
+- The upstream ToolDispatcher is retained, with cancellation forwarded to the captured cancellable hub.
+- Request safety: 15 passed. Selected server regressions: 123 passed. EngineFree: 67 passed.
+- CLI: 641 passed, 2 skipped, 42 files passed. Prerelease version output and release repository drift guards passed.
+- Real Unity 2021 and 2022 assembly references: DependencyResolver, Runtime and Editor full-source builds all passed; no Unity Test Runner execution is claimed for this update.
+- All seven self-contained RID archives were built locally. All 11 release assets passed archive/checksum validation.
+- Windows x64 self-contained host started successfully and served `/help` with HTTP 200. Tool listing correctly reported no connected Unity client in this isolated smoke run; that host was stopped afterwards. Other OS/architecture binaries were cross-built and their archives checked, not launched on this Windows host.
+- Fresh official archives were patched from scratch and every declared pre/post source hash verified. New-file Git patch mode metadata was corrected after this clean-environment check.
+- The four previously repaired business projects received the new paired DLLs; backups are in `.local/request-safety/project-repair/447fbe5cd087429cb9705b887d10492c/`.
+- Publication is managed by [release-dependencies.yml](../../.github/workflows/release-dependencies.yml). The public dependency release is required before a consuming plugin release.
+
+Local evidence was generated in `.local/request-safety/worktrees/release-hosting/.local/request-safety/`: `hosting-tests.log`, `release-build.log`, `release-resume.log`, `cli-tests2.log`, `compile-<2021|2022>-<assembly>.log`, the logs above. Prepared sources, packages, TRX results and release artifacts were then moved into the primary checkout's `.local/request-safety/`; the previous primary build workspace was preserved at `.local/request-safety/before-release-hosting-20261019/`.
+Additional fresh-patch evidence: `.local/request-safety/fresh-patch-check-2.log`.
+
+
+The manual [GitHub Actions run 39193321377](https://github.com/Misaka16608/Unity-MCP/actions/runs/39193321377) succeeded and published all 11 assets at [v9.2.12-request-safety.4](https://github.com/Misaka16608/Unity-MCP/releases/tag/v9.2.12-request-safety.4), targeting `406d285b40e2e1b78a5e5ef1a009c461bde78abe`.
+Anonymous public-package downloads and SHA256 verification succeeded. Tracked DLL drops and the four business projects were aligned to the actual published packages, with their restore caches and checksum manifests seeded. Release checks passed before removing the four old `.env` overrides. The migration preserves exact configuration backups in `.local/request-safety/hosted-migration/5b70fc7087184d4cb653b844d5961875/`; the final DLL replacement backups are in `.local/request-safety/project-repair/d239721275a14c0cb27f20b554263291/`.
+Running editors/servers were not forcibly restarted during migration. Restart each Unity editor to switch to the release-managed server; existing override binaries remain on disk for rollback.
+
+The downloaded public Windows x64 archive also passed SHA256 verification, extraction and an isolated `/help` HTTP 200 readiness check, after which only the smoke-test process was stopped. Evidence: `.local/request-safety/public-release/smoke-result.json`. Final four-project DLL/cache/override verification: `.local/request-safety/hosted-project-verification.json`.
+
+All six full-source builds were repeated against the actual published DLLs and passed; logs: `.local/request-safety/public-compile-<2021|2022>-<DependencyResolver|Runtime|Editor>.log`.
