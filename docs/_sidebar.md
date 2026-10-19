@@ -15,6 +15,7 @@
 
 - **Development**
   - [Development Guide](/dev/Development.md)
+  - [Fork 更新流程（中文）](/dev/update-from-remotes.zh-CN.md)
   - [Version Management](/version-management.md)
   - [OpenUPM Package Signing](/openupm-signing.md)
   - [Architecture](/#how-unity-mcp-architecture-works)
