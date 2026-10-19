@@ -34,3 +34,9 @@ __pycache__/
 
 # Isolated, reproducible request-safety dependency builds (see commands/request-safety).
 .local/request-safety/
+# Shared extension/installer fixtures, materialized by commands/extensions.py prepare.
+/Unity-Tests/*/Assets/ExtensionIsolation/
+/Unity-Tests/*/Assets/ExtensionIsolation.meta
+/Unity-Tests/*/Assets/com.IvanMurzak/
+/Unity-Tests/*/Assets/com.IvanMurzak.meta
+/.artifacts/

@@ -5,8 +5,8 @@ diff --git a/McpPlugin.Common/McpPlugin.Common.csproj b/McpPlugin.Common/McpPlug
      <!-- NuGet Package Information -->
      <IsPackable>true</IsPackable>
      <PackageId>com.IvanMurzak.McpPlugin.Common</PackageId>
--    <Version>8.8.0</Version>
-+    <Version>8.8.0-request-safety.3</Version>
+-    <Version>8.9.0</Version>
++    <Version>8.9.0-request-safety.4</Version>
      <Authors>Ivan Murzak</Authors>
      <Company>Ivan Murzak</Company>
      <Copyright>Copyright © Ivan Murzak 2025</Copyright>
@@ -18,9 +18,9 @@ diff --git a/McpPlugin.Common/src/Utils/Consts.cs b/McpPlugin.Common/src/Utils/C
      public static partial class Consts
      {
 -        public const string ApiVersion = "2.0.0";
--        public const string PluginVersion = "8.8.0";
+-        public const string PluginVersion = "8.9.0";
 +        public const string ApiVersion = "2.0.0-request-safety.3";
-+        public const string PluginVersion = "8.8.0-request-safety.3";
++        public const string PluginVersion = "8.9.0-request-safety.4";
  
          public static class Guid
          {
@@ -38,7 +38,6 @@ diff --git a/McpPlugin.Common/src/Data/Request/Tool/Call/RequestCallTool.cs b/Mc
  
          public RequestCallTool() { }
 diff --git a/McpPlugin.Common/src/Execution/ExecutionRegistry.cs b/McpPlugin.Common/src/Execution/ExecutionRegistry.cs
-new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Common/src/Execution/ExecutionRegistry.cs
 @@ -0,0 +1,97 @@
@@ -140,7 +139,6 @@ new file mode 100644
 +    }
 +}
 diff --git a/McpPlugin.Common/src/Execution/ToolExecutionContext.cs b/McpPlugin.Common/src/Execution/ToolExecutionContext.cs
-new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Common/src/Execution/ToolExecutionContext.cs
 @@ -0,0 +1,40 @@
@@ -185,7 +183,6 @@ new file mode 100644
 +    }
 +}
 diff --git a/McpPlugin.Common/src/Hub/Client/ICancellableToolHub.cs b/McpPlugin.Common/src/Hub/Client/ICancellableToolHub.cs
-new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Common/src/Hub/Client/ICancellableToolHub.cs
 @@ -0,0 +1,29 @@
@@ -225,8 +222,8 @@ diff --git a/McpPlugin/McpPlugin.csproj b/McpPlugin/McpPlugin.csproj
      <!-- NuGet Package Information -->
      <IsPackable>true</IsPackable>
      <PackageId>com.IvanMurzak.McpPlugin</PackageId>
--    <Version>8.8.0</Version>
-+    <Version>8.8.0-request-safety.3</Version>
+-    <Version>8.9.0</Version>
++    <Version>8.9.0-request-safety.4</Version>
      <Authors>Ivan Murzak</Authors>
      <Company>Ivan Murzak</Company>
      <Copyright>Copyright © Ivan Murzak 2025</Copyright>
@@ -272,7 +269,6 @@ diff --git a/McpPlugin/src/Mcp/McpToolManager.cs b/McpPlugin/src/Mcp/McpToolMana
              _tools.Clear();
          }
 diff --git a/McpPlugin/src/Mcp/ToolRequestExecutor.cs b/McpPlugin/src/Mcp/ToolRequestExecutor.cs
-new file mode 100644
 --- /dev/null
 +++ b/McpPlugin/src/Mcp/ToolRequestExecutor.cs
 @@ -0,0 +1,58 @@
@@ -401,8 +397,8 @@ diff --git a/McpPlugin.Server/McpPlugin.Server.csproj b/McpPlugin.Server/McpPlug
      <!-- NuGet Package Information -->
      <IsPackable>true</IsPackable>
      <PackageId>com.IvanMurzak.McpPlugin.Server</PackageId>
--    <Version>8.8.0</Version>
-+    <Version>8.8.0-request-safety.3</Version>
+-    <Version>8.9.0</Version>
++    <Version>8.9.0-request-safety.4</Version>
      <Authors>Ivan Murzak</Authors>
      <Company>Ivan Murzak</Company>
      <Copyright>Copyright © Ivan Murzak 2025</Copyright>
@@ -970,36 +966,17 @@ diff --git a/McpPlugin.Server/src/Client/RequestTrackingService.cs b/McpPlugin.S
 diff --git a/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs b/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs
 --- a/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs
 +++ b/McpPlugin.Server/src/Mcp/Tool/ToolRouter.Call.cs
-@@ -79,11 +79,13 @@
-                 }
-             }
+@@ -43,7 +43,8 @@
+             var argumentsDict = request.Params.Arguments as IReadOnlyDictionary<string, JsonElement>
+                 ?? new Dictionary<string, JsonElement>();
  
 -            var requestData = new RequestCallTool(request.Params.Name, argumentsDict);
-+            // Preserve the transport request ID (including numeric vs string type) on
-+            // redelivery; a new GUID here would bypass the scoped execution ledger.
-+            var requestData = new RequestCallTool("mcp:" + System.Text.Json.JsonSerializer.Serialize(request.JsonRpcRequest.Id), request.Params.Name, argumentsDict);
++            // Keep the transport ID, including number/string distinction, for scoped deduplication.
++            var requestData = new RequestCallTool("mcp:" + JsonSerializer.Serialize(request.JsonRpcRequest.Id), request.Params.Name, argumentsDict);
              if (logger.IsTraceEnabled)
                  logger.Trace("Call remote tool '{0}':\n{1}", request.Params.Name, requestData.ToPrettyJson());
  
--            var response = await toolRunner.RunCallTool(requestData);
-+            var response = await toolRunner.RunCallTool(requestData, cancellationToken);
-             if (response == null)
-                 return new CallToolResult().SetError($"[Error] '{nameof(response)}' is null");
- 
-diff --git a/McpPlugin.Server/src/Api/DirectToolCallEndpoints.cs b/McpPlugin.Server/src/Api/DirectToolCallEndpoints.cs
---- a/McpPlugin.Server/src/Api/DirectToolCallEndpoints.cs
-+++ b/McpPlugin.Server/src/Api/DirectToolCallEndpoints.cs
-@@ -255,7 +255,7 @@
-             }
- 
-             var requestData = new RequestCallTool(name, arguments);
--            var response = await toolHub.RunCallTool(requestData);
-+            var response = await toolHub.RunCallTool(requestData, context.RequestAborted);
- 
-             // ── Fire webhook ────────────────────────────────────────────
-             if (webhookOptions?.IsToolEnabled == true)
 diff --git a/McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs b/McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs
-new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Server.Tests/RequestExecutionSafetyTests.cs
 @@ -0,0 +1,283 @@
@@ -1287,7 +1264,6 @@ new file mode 100644
 +    }
 +}
 diff --git a/McpPlugin.Server.Tests/RequestExecutionTransportTests.cs b/McpPlugin.Server.Tests/RequestExecutionTransportTests.cs
-new file mode 100644
 --- /dev/null
 +++ b/McpPlugin.Server.Tests/RequestExecutionTransportTests.cs
 @@ -0,0 +1,113 @@
@@ -1404,3 +1380,18 @@ new file mode 100644
 +        }
 +    }
 +}
+diff --git a/McpPlugin.Server/src/Tools/ToolDispatcher.cs b/McpPlugin.Server/src/Tools/ToolDispatcher.cs
+--- a/McpPlugin.Server/src/Tools/ToolDispatcher.cs
++++ b/McpPlugin.Server/src/Tools/ToolDispatcher.cs
+@@ -50,7 +50,10 @@
+                 }
+             }
+ 
+-            return await services.GetRequiredService<IClientToolHub>().RunCallTool(request);
++            var hub = services.GetRequiredService<IClientToolHub>();
++            return hub is ICancellableToolHub cancellable
++                ? await cancellable.RunCallTool(request, cancellationToken)
++                : await hub.RunCallTool(request);
+         }
+     }
+ }

@@ -5,8 +5,8 @@ diff --git a/com.IvanMurzak.GameDev.MCP.Server.csproj b/com.IvanMurzak.GameDev.M
      <PackAsTool>true</PackAsTool>
      <ToolCommandName>gamedev-mcp-server</ToolCommandName>
      <PackageId>com.IvanMurzak.GameDev.MCP.Server</PackageId>
--    <Version>9.2.11</Version>
-+    <Version>9.2.11-request-safety.3</Version>
+-    <Version>9.2.12</Version>
++    <Version>9.2.12-request-safety.4</Version>
      <Authors>Ivan Murzak</Authors>
      <Company>Ivan Murzak</Company>
      <Copyright>Copyright © 2026 Ivan Murzak</Copyright>
@@ -14,7 +14,7 @@ diff --git a/com.IvanMurzak.GameDev.MCP.Server.csproj b/com.IvanMurzak.GameDev.M
    -->
    <ItemGroup Condition="'$(UseLocalMcpPlugin)' != 'true'">
      <PackageReference Include="com.IvanMurzak.ReflectorNet" Version="5.4.2" />
--    <PackageReference Include="com.IvanMurzak.McpPlugin.Server" Version="8.7.1" />
+-    <PackageReference Include="com.IvanMurzak.McpPlugin.Server" Version="8.8.1" />
 +    <ProjectReference Include="../MCP-Plugin-dotnet/McpPlugin.Server/McpPlugin.Server.csproj" />
      <!--
        Base McpPlugin package: the McpPlugin.Server package does NOT depend on it, but it hosts the
@@ -22,7 +22,7 @@ diff --git a/com.IvanMurzak.GameDev.MCP.Server.csproj b/com.IvanMurzak.GameDev.M
        ProjectMarker primitives the `configure` subcommand consumes from the terminal. Pinned in
        lockstep with McpPlugin.Server.
      -->
--    <PackageReference Include="com.IvanMurzak.McpPlugin" Version="8.7.1" />
+-    <PackageReference Include="com.IvanMurzak.McpPlugin" Version="8.8.1" />
 +    <ProjectReference Include="../MCP-Plugin-dotnet/McpPlugin/McpPlugin.csproj" />
    </ItemGroup>
  
@@ -34,15 +34,15 @@ diff --git a/server.json b/server.json
      "url": "https://github.com/IvanMurzak/GameDev-MCP-Server",
      "source": "github"
    },
--  "version": "9.2.11",
-+  "version": "9.2.11-request-safety.3",
+-  "version": "9.2.12",
++  "version": "9.2.12-request-safety.4",
    "packages": [
      {
        "registry_type": "oci",
        "registry_base_url": "https://docker.io",
        "identifier": "aigamedeveloper/mcp-server",
--      "version": "9.2.11",
-+      "version": "9.2.11-request-safety.3",
+-      "version": "9.2.12",
++      "version": "9.2.12-request-safety.4",
        "transport": {
          "type": "stdio"
        },

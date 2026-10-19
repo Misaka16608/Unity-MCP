@@ -7,3 +7,8 @@
 
 # Unified diffs require a single-space marker for blank context lines.
 /commands/request-safety/patches/*.patch text eol=lf whitespace=-blank-at-eol
+# Imported modules retain their original source/test/meta bytes on every host.
+/extensions/** -text whitespace=cr-at-eol
+/templates/** -text whitespace=cr-at-eol
+# Vendored Code-Exec sources: hashes in its VENDORED.md are over LF bytes.
+/Unity-MCP-Plugin/Packages/com.ivanmurzak.unity.mcp/Editor/Scripts/CodeExec/** text eol=lf
