@@ -14,6 +14,10 @@ from the plugin version). Bumping the consumed server = changing that constant; 
 
 ## Build / run
 
+- On `codex/unity-2021-ui`, follow [the compatibility branch policy](docs/dev/unity-2021-ui-compat.zh-CN.md):
+  merge official upstream and retain only Unity 2021 UI/API compatibility changes. Keep official
+  NuGet dependencies, protocol and server distribution; do not restore the older fork's custom stack.
+
 - Bump version: `python commands/bump_version.py --new-version <version>` (`--what-if` to preview).
 - Releases happen only by manually dispatching `.github/workflows/release.yml`; merging a version
   bump publishes nothing.

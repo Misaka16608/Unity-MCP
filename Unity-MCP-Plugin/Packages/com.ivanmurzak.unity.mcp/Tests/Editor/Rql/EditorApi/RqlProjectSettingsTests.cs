@@ -106,6 +106,36 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests.Rql.EditorApi
         }
 
         [Test]
+        public void MipmapLimitUsesTheEngineTextureQualitySetting()
+        {
+#if UNITY_2022_3_OR_NEWER
+            var original = QualitySettings.globalTextureMipmapLimit;
+#else
+            var original = QualitySettings.masterTextureLimit;
+#endif
+            try
+            {
+                AssertOk(M("settings | set quality.globalTextureMipmapLimit = 2"));
+#if UNITY_2022_3_OR_NEWER
+                Assert.AreEqual(2, QualitySettings.globalTextureMipmapLimit);
+#else
+                Assert.AreEqual(2, QualitySettings.masterTextureLimit);
+#endif
+                Assert.AreEqual("2", Cell(Q("settings | select quality.globalTextureMipmapLimit")));
+                Assert.IsFalse(M("settings | set quality.globalTextureMipmapLimit = 4").Ok);
+                Assert.AreEqual("2", Cell(Q("settings | select quality.globalTextureMipmapLimit")));
+            }
+            finally
+            {
+#if UNITY_2022_3_OR_NEWER
+                QualitySettings.globalTextureMipmapLimit = original;
+#else
+                QualitySettings.masterTextureLimit = original;
+#endif
+            }
+        }
+
+        [Test]
         public void LevelsAndColorSpaceAreReadOnly()
         {
             Assert.IsFalse(M("settings | set quality.levels = [\"A\"]").Ok);

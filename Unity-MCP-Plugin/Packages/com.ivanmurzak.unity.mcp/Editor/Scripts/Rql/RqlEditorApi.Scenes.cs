@@ -176,7 +176,22 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Rql
 
         // The call that loads a scene's file: OpenScene when it is the only loaded scene (Single mode closes the others), else
         // Close and an additive OpenScene (the scene then comes last in the Hierarchy).
-        private static string LoadFileHint(string path) => SceneManager.loadedSceneCount == 1
+        private static int LoadedSceneCount
+        {
+            get
+            {
+#if UNITY_2022_3_OR_NEWER
+                return SceneManager.loadedSceneCount;
+#else
+                var count = 0;
+                for (var i = 0; i < SceneManager.sceneCount; i++)
+                    if (SceneManager.GetSceneAt(i).isLoaded) count++;
+                return count;
+#endif
+            }
+        }
+
+        private static string LoadFileHint(string path) => LoadedSceneCount == 1
             ? $"editor | call OpenScene(\"{path}\")" + (SceneManager.sceneCount > 1 ? " (it also removes the unloaded scenes)" : "")
             : $"scenes | where path == \"{path}\" | call Close() and then editor | call OpenScene(\"{path}\", true)";
 
@@ -185,7 +200,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Rql
         private static bool Reload(Scene scene)
         {
             var path = scene.path;
-            if (SceneManager.loadedSceneCount == 1)
+            if (LoadedSceneCount == 1)
             {
                 try { EditorSceneManager.RestoreSceneManagerSetup(EditorSceneManager.GetSceneManagerSetup()); }
                 catch (Exception e) when (e is ArgumentException || e is InvalidOperationException) { return false; }

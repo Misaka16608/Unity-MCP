@@ -92,10 +92,12 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Rql.Adapters
             m.Untyped.AddMixedMap("properties", o => Keys((Material)o), (o, k) => EntryType((Material)o, k),
                 (o, k) => Get((Material)o, k), (o, k, v) => Set((Material)o, k, v), (o, k, v) => Validate((Material)o, k, v),
                 "shader properties by name", has: (o, k) => ((Material)o).HasProperty(k));
+#if UNITY_2022_3_OR_NEWER
             m.Add<Material?>("parent", o => o.parent, (o, v) => o.parent = v, (o, v) => ValidateParent(o, v),
                     "the material this one is a Material Variant of (it takes the parent's shader; properties set on it become overrides); null = a plain material")
-             .Add<bool>("isVariant", o => o.isVariant, description: "true when this material is a Material Variant (has a parent)")
-             .Add<Color?>("color", o => MainColor(o) is { } p ? o.GetColor(p) : (Color?)null,
+             .Add<bool>("isVariant", o => o.isVariant, description: "true when this material is a Material Variant (has a parent)");
+#endif
+            m.Add<Color?>("color", o => MainColor(o) is { } p ? o.GetColor(p) : (Color?)null,
                  (o, v) => o.SetColor(MainColor(o) ?? throw new InvalidOperationException(NoMain(o, "color")), v!.Value),
                  (o, v) => v == null ? "color cannot be null"
                      : MainColor(o) == null ? NoMain(o, "color") : null,
@@ -124,6 +126,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Rql.Adapters
         private static string NoMain(Material m, string what) =>
             $"shader '{(m.shader != null ? m.shader.name : "none")}' has no main {what}: set its property by name, properties[\"_Name\"]";
 
+#if UNITY_2022_3_OR_NEWER
         // Unity ignores a parent that would make a cycle (it logs an error and keeps the old one): refused before any write.
         internal static string? ValidateParent(Material material, Material? parent)
         {
@@ -133,6 +136,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Rql.Adapters
                     return $"'{parent!.name}' is already a variant of '{material.name}' (directly or through its parents): a cycle";
             return null;
         }
+#endif
 
         private static IEnumerable<string> Keys(Material m)
         {

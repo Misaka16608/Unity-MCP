@@ -23,6 +23,11 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using static com.IvanMurzak.McpPlugin.Common.Consts.MCP.Server;
 using LogLevel = com.IvanMurzak.Unity.MCP.Runtime.Utils.LogLevel;
+#if UNITY_2022_1_OR_NEWER
+using IntegerField = UnityEngine.UIElements.IntegerField;
+#else
+using IntegerField = UnityEditor.UIElements.IntegerField;
+#endif
 
 namespace com.IvanMurzak.Unity.MCP.Editor.UI
 {
@@ -336,7 +341,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.UI
                 SaveChanges($"[AI Game Developer] LogLevel Changed: {evt.newValue}");
             });
 
-            var inputTimeoutMs = root.Q<IntegerField>("inputTimeoutMs");
+            var inputTimeoutMs = CreateTimeoutField(root, "inputTimeoutMs", "Timeout (ms)");
             inputTimeoutMs.value = UnityMcpPluginEditor.TimeoutMs;
             inputTimeoutMs.tooltip = $"Connection timeout in milliseconds: the MCP server's '{Args.PluginTimeout}'.\n\nThe server waits this long for the plugin to list tools, prompts and resources. Tool calls use 'Tool timeout' instead (servers built on McpPlugin 8.11.0 or later; an older server also waits this long per tool-call attempt).";
             BindTimeoutField(inputTimeoutMs, () => UnityMcpPluginEditor.TimeoutMs, newValue =>
@@ -346,7 +351,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.UI
                 UnityBuildAndConnect();
             });
 
-            var inputToolTimeoutMs = root.Q<IntegerField>("inputToolTimeoutMs");
+            var inputToolTimeoutMs = CreateTimeoutField(root, "inputToolTimeoutMs", "Tool timeout (ms)");
             inputToolTimeoutMs.value = UnityMcpPluginEditor.ToolTimeoutMs;
             inputToolTimeoutMs.tooltip = $"How long the MCP server waits for one tool call, in milliseconds: the server's '{Args.ToolTimeout}' (default {McpPlugin.Common.Consts.Hub.DefaultToolTimeoutMs}).\n\nSet it higher than your longest tool run, e.g. a long test run. A value below 'Timeout' is raised to it.\n\nThe local server picks up a change when it restarts. AI agent configs that start the server themselves (stdio) use the server's default unless you add '{Args.ToolTimeout}=<ms>' to their arguments.";
             BindTimeoutField(inputToolTimeoutMs, () => UnityMcpPluginEditor.ToolTimeoutMs, newValue =>
@@ -356,6 +361,19 @@ namespace com.IvanMurzak.Unity.MCP.Editor.UI
             });
 
             root.Q<TextField>("currentVersion").value = UnityMcpPlugin.Version;
+        }
+
+        // IntegerField moved from UnityEditor.UIElements to UnityEngine.UIElements in 2022.
+        // Shared UXML uses placeholders so either editor can import it without a missing factory.
+        static IntegerField CreateTimeoutField(VisualElement root, string name, string label)
+        {
+            var placeholder = root.Q<VisualElement>(name);
+            var field = new IntegerField(label) { name = name };
+            foreach (var className in placeholder.GetClasses())
+                field.AddToClassList(className);
+            placeholder.parent.Insert(placeholder.parent.IndexOf(placeholder), field);
+            placeholder.RemoveFromHierarchy();
+            return field;
         }
 
         /// <summary>

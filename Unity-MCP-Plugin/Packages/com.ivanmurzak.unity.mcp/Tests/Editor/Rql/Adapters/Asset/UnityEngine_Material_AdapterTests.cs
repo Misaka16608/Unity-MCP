@@ -76,6 +76,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests.Rql.Adapters
         public void UnknownPropertiesAreRejected() =>
             AssertFails(M(Mat + " | set properties[\"_NoSuchProperty\"] = 1"), "invalid-value", "no entry");
 
+#if UNITY_2022_3_OR_NEWER
         // A Material Variant: parent is writable, isVariant reports it; null makes it a plain material again.
         [Test]
         public void ParentMakesAMaterialVariant()
@@ -106,6 +107,8 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests.Rql.Adapters
             }
             finally { Object.DestroyImmediate(child); }
         }
+
+#endif
 
         private static string RefOf(Object o) => com.IvanMurzak.Unity.MCP.Editor.Rql.RqlUnity.Engine.RefOf(o)!;
 

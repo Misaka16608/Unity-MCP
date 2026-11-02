@@ -78,6 +78,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests.Rql.EditorApi
             StringAssert.DoesNotContain("Other", mesh);
         }
 
+#if UNITY_2022_3_OR_NEWER
         [Test]
         public void PrefabOverridesListARemovedGameObject()
         {
@@ -86,6 +87,7 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Tests.Rql.EditorApi
             var roots = Table(Q("roots | select name prefabSource prefabOverrides"));
             StringAssert.Contains("removed GameObject Coin/Mesh", roots);
         }
+#endif
 
         [Test]
         public void RevertDropsTheOverridesAndIsUndoable()

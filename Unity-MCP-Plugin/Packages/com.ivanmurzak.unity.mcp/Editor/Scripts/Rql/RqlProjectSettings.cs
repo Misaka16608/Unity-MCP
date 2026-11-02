@@ -178,8 +178,13 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Rql
         [RqlDescription("Global Mipmap Limit: 0 = full resolution textures, 1 = half, 2 = quarter, 3 = eighth")]
         public int globalTextureMipmapLimit
         {
+#if UNITY_2022_3_OR_NEWER
             get => QualitySettings.globalTextureMipmapLimit;
             set { Require(value, value >= 0 && value <= 3, "between 0 and 3"); QualitySettings.globalTextureMipmapLimit = value; }
+#else
+            get => QualitySettings.masterTextureLimit;
+            set { Require(value, value >= 0 && value <= 3, "between 0 and 3"); QualitySettings.masterTextureLimit = value; }
+#endif
         }
 
         [RqlDescription("Anisotropic Textures: Disable, Enable or ForceEnable")]

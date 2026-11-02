@@ -89,8 +89,13 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Rql.Physics3D
         public bool autoSyncTransforms { get => Physics.autoSyncTransforms; set => Physics.autoSyncTransforms = value; }
 #pragma warning restore CS0618
 
+#if UNITY_2022_3_OR_NEWER
         [RqlDescription("Simulation Mode: FixedUpdate, Update or Script")]
         public SimulationMode simulationMode { get => Physics.simulationMode; set => Physics.simulationMode = value; }
+#else
+        [RqlDescription("Automatically simulate physics in FixedUpdate; false requires explicit Physics.Simulate calls")]
+        public bool autoSimulation { get => Physics.autoSimulation; set => Physics.autoSimulation = value; }
+#endif
 
         public override string ToString() => $"physics (gravity {gravity})";
 

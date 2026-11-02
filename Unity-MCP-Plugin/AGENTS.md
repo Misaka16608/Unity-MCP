@@ -2,7 +2,9 @@
 
 Unity Editor/Runtime side of the MCP bridge: an attribute-based framework that registers and runs
 MCP tools, prompts and resources, plus the MCP server manager and AI-client auto-configuration.
-Open this folder in Unity (2022.3+ minimum; compiles automatically).
+On `codex/unity-2021-ui`, Unity 2021.3 is the compatibility target; upstream targets 2022.3+.
+See [compatibility scope and validation](../docs/dev/unity-2021-ui-compat.zh-CN.md).
+Open this folder in Unity to compile automatically.
 
 ## Layout (`Packages/com.ivanmurzak.unity.mcp/` holds all shipped code)
 

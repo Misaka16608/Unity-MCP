@@ -132,9 +132,11 @@ namespace com.IvanMurzak.Unity.MCP.Editor.Rql.Adapters
             foreach (var added in PrefabUtility.GetAddedGameObjects(root))
                 if (added.instanceGameObject != null && (whole || added.instanceGameObject.transform.parent == g.transform))
                     result.Add($"added GameObject {Label(added.instanceGameObject)}");
+#if UNITY_2022_3_OR_NEWER
             foreach (var removed in PrefabUtility.GetRemovedGameObjects(root))
                 if (removed.assetGameObject != null && Mine(removed.parentOfRemovedGameObjectInInstance))
                     result.Add($"removed GameObject {Label(removed.assetGameObject)}");
+#endif
             return result;
         }
 
